@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import DueBillsView from './components/DueBillsView';
 import Navbar from './components/Navbar';
 import DashboardView from './components/DashboardView';
 import CalendarView from './components/CalendarView';
@@ -414,7 +415,18 @@ const App: React.FC = () => {
       <main className="flex-1 overflow-y-auto w-full relative z-10 px-4 pt-4 scroll-smooth">
         <div className="max-w-lg mx-auto">
           {activeTab === 'dashboard' && <DashboardView data={data} onSwitchTab={setActiveTab} onOpenTxModal={() => { setEditingTx(null); setIsTxModalOpen(true); }} />}
+          {/* ... existing DashboardView ... */}
+          {activeTab === 'dashboard' && <DashboardView data={data} onSwitchTab={setActiveTab} onOpenTxModal={() => { setEditingTx(null); setIsTxModalOpen(true); }} />}
           
+          {/* --- NEW SECTIONS --- */}
+          {(activeTab as any) === 'bills_today' && 
+             <DueBillsView data={data} mode="today" onBack={() => setActiveTab('dashboard')} />
+          }
+          {(activeTab as any) === 'bills_week' && 
+             <DueBillsView data={data} mode="week" onBack={() => setActiveTab('dashboard')} />
+          }
+          {/* -------------------- */}
+
           {activeTab === 'calendar' && 
             <CalendarView 
                 data={data} 

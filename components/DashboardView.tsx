@@ -106,21 +106,32 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data, onSwitchTab, onOpen
 
       {/* Quick Stats Grid */}
       <div className="grid grid-cols-3 gap-3">
-        {[
-          { label: 'Today', icon: <Flag size={24} className="text-blue-300" />, val: dayTotal, color: 'blue' },
-          { label: 'Week', icon: <Timer size={24} className="text-blue-300" />, val: weekTotal, color: 'blue' },
-          { label: 'Month', icon: <InfinityIcon size={24} className="text-yellow-400" />, val: monthTotal, color: 'yellow', border: true }
-        ].map((s, i) => (
-          <div 
-            key={i} 
+        <div 
+            onClick={() => onSwitchTab('bills_today')}
+            className="p-3 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer transition-transform active:scale-95 bg-gradient-to-br from-blue-900/20 to-blue-950/20 border border-blue-800/30"
+        >
+            <div className="mb-1"><Flag size={24} className="text-blue-300" /></div>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-blue-300">Today</p>
+            <h3 className="text-lg font-black text-white">${dayTotal.toFixed(0)}</h3>
+        </div>
+
+        <div 
+            onClick={() => onSwitchTab('bills_week')}
+            className="p-3 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer transition-transform active:scale-95 bg-gradient-to-br from-blue-900/20 to-blue-950/20 border border-blue-800/30"
+        >
+            <div className="mb-1"><Timer size={24} className="text-blue-300" /></div>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-blue-300">Week</p>
+            <h3 className="text-lg font-black text-white">${weekTotal.toFixed(0)}</h3>
+        </div>
+
+        <div 
             onClick={() => onSwitchTab('calendar')}
-            className={`p-3 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer transition-transform active:scale-95 bg-gradient-to-br from-blue-900/20 to-blue-950/20 border border-blue-800/30 ${s.border ? 'border-yellow-500/50 shadow-[0_0_15px_-3px_rgba(234,179,8,0.2)]' : ''}`}
-          >
-            <div className="mb-1">{s.icon}</div>
-            <p className={`text-[9px] font-bold uppercase tracking-widest text-${s.color}-300`}>{s.label}</p>
-            <h3 className="text-lg font-black text-white">${s.val.toFixed(0)}</h3>
-          </div>
-        ))}
+            className="p-3 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer transition-transform active:scale-95 bg-gradient-to-br from-blue-900/20 to-blue-950/20 border border-yellow-500/50 shadow-[0_0_15px_-3px_rgba(234,179,8,0.2)]"
+        >
+            <div className="mb-1"><InfinityIcon size={24} className="text-yellow-400" /></div>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-yellow-300">Month</p>
+            <h3 className="text-lg font-black text-white">${monthTotal.toFixed(0)}</h3>
+        </div>
       </div>
 
       {/* Next Bill */}
