@@ -64,9 +64,10 @@ const FunView: React.FC<FunViewProps> = ({ data, monthOffset, setMonthOffset, on
   });
 
   return (
-    <div className="space-y-6 pb-24 animate-fade-in h-full flex flex-col">
+    // changed h-full to h-[100dvh] to fix mobile height issues
+    <div className="space-y-6 pb-24 animate-fade-in h-[100dvh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-2 pt-2">
             <div className="flex items-center gap-2">
                 <button onClick={onBack} className="p-2 bg-neutral-800 rounded-full text-white hover:bg-neutral-700">
                     <ArrowLeft size={20} />
@@ -92,7 +93,7 @@ const FunView: React.FC<FunViewProps> = ({ data, monthOffset, setMonthOffset, on
         </div>
 
         {/* Big Total */}
-        <div className="bg-gradient-to-br from-pink-900/20 to-purple-900/20 border border-pink-500/30 rounded-3xl p-8 text-center shadow-lg relative overflow-hidden">
+        <div className="shrink-0 bg-gradient-to-br from-pink-900/20 to-purple-900/20 border border-pink-500/30 rounded-3xl p-8 text-center shadow-lg relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-10">
                 <PartyPopper size={120} className="text-pink-500 rotate-12" />
             </div>
@@ -111,9 +112,9 @@ const FunView: React.FC<FunViewProps> = ({ data, monthOffset, setMonthOffset, on
             </div>
         </div>
 
-        {/* List */}
-        <div className="flex-1 bg-[#171717] rounded-3xl overflow-hidden border border-[#262626] relative shadow-xl">
-            <div className="absolute inset-0 overflow-y-auto no-scrollbar">
+        {/* List - REMOVED "absolute inset-0" causing the collapse */}
+        <div className="flex-1 bg-[#171717] rounded-3xl overflow-hidden border border-[#262626] relative shadow-xl min-h-0">
+            <div className="h-full overflow-y-auto no-scrollbar">
                 <table className="min-w-full text-xs text-left text-neutral-400">
                     <thead className="text-[10px] text-neutral-500 uppercase bg-neutral-900 sticky top-0 z-10 shadow-sm">
                         <tr>
@@ -145,6 +146,3 @@ const FunView: React.FC<FunViewProps> = ({ data, monthOffset, setMonthOffset, on
         </div>
     </div>
   );
-};
-
-export default FunView;
