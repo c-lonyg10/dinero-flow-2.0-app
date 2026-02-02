@@ -16,13 +16,62 @@ const SpendingView: React.FC<SpendingViewProps> = ({ data, monthOffset, setMonth
   const currentMonth = new Date();
   currentMonth.setMonth(currentMonth.getMonth() - monthOffset);
   
+  // 1. Filter by Date
   const monthTx = data.transactions.filter(t => {
       const d = new Date(t.d);
       return d.getMonth() === currentMonth.getMonth() && d.getFullYear() === currentMonth.getFullYear();
   });
 
-  const diningTx = monthTx.filter(t => t.c === "Dining");
-  const groceriesTx = monthTx.filter(t => t.c === "Groceries");
+  // 2. THE OFFLINE BRAIN (Keyword Logic)
+  const isDining = (t: Transaction) => {
+      const text = t.t.toLowerCase();
+      const cat = t.c ? t.c.toLowerCase() : "";
+      
+      // Strict category check OR keyword check
+      if (cat === "dining" || cat === "restaurants") return true;
+      
+      return text.includes("mcdonald") || 
+             text.includes("chick-fil-a") || 
+             text.includes("chick fil a") ||
+             text.includes("starbucks") ||
+             text.includes("dunkin") ||
+             text.includes("taco") ||
+             text.includes("chipotle") ||
+             text.includes("burger") ||
+             text.includes("pizza") ||
+             text.includes("grill") ||
+             text.includes("cafe") ||
+             text.includes("bojangles") ||
+             text.includes("cook out") ||
+             text.includes("wendy") ||
+             text.includes("sushi") ||
+             text.includes("hibachi") ||
+             text.includes("restaurant") ||
+             text.includes("doordash") ||
+             text.includes("uber eats");
+  };
+
+  const isGroceries = (t: Transaction) => {
+      const text = t.t.toLowerCase();
+      const cat = t.c ? t.c.toLowerCase() : "";
+
+      if (cat === "groceries") return true;
+
+      return text.includes("harris teeter") || 
+             text.includes("food lion") || 
+             text.includes("publix") || 
+             text.includes("walmart") || 
+             text.includes("target") || 
+             text.includes("aldi") || 
+             text.includes("trader joe") || 
+             text.includes("whole foods") || 
+             text.includes("market") ||
+             text.includes("supermarket") ||
+             text.includes("grocery");
+  };
+
+  const diningTx = monthTx.filter(isDining);
+  const groceriesTx = monthTx.filter(isGroceries);
 
   const diningTotal = diningTx.reduce((s, t) => s + Math.abs(t.a), 0);
   const groceriesTotal = groceriesTx.reduce((s, t) => s + Math.abs(t.a), 0);
@@ -32,20 +81,27 @@ const SpendingView: React.FC<SpendingViewProps> = ({ data, monthOffset, setMonth
   const diningPercent = foodTotal > 0 ? (diningTotal / foodTotal) * 100 : 0;
   const groceryPercent = foodTotal > 0 ? (groceriesTotal / foodTotal) * 100 : 0;
 
-  // Top Spot (Most visited place by total)
+  // Top Spot Logic (Combined)
   const spots: {[key: string]: number} = {};
-  monthTx.filter(t => t.c === "Dining" || t.c === "Groceries").forEach(t => {
+  [...diningTx, ...groceriesTx].forEach(t => {
+      // Clean up the name for better grouping
       let n = t.t.split('#')[0].split(' Store')[0].trim().replace(/TST\*/g,'').replace(/SQ \*/g,'').trim();
-      if(n.toLowerCase().includes("chick")) n="Chick-Fil-A";
-      if(n.toLowerCase().includes("harris")) n="Harris Teeter";
-      if(n.toLowerCase().includes("publix")) n="Publix";
+      
+      // Normalizing common names
+      const lower = n.toLowerCase();
+      if(lower.includes("chick")) n="Chick-Fil-A";
+      if(lower.includes("harris")) n="Harris Teeter";
+      if(lower.includes("publix")) n="Publix";
+      if(lower.includes("food lion")) n="Food Lion";
+      if(lower.includes("mcdonald")) n="McDonalds";
+      if(lower.includes("walmart")) n="Walmart";
+
       spots[n] = (spots[n] || 0) + Math.abs(t.a);
   });
   const topSpot = Object.entries(spots).sort((a, b) => b[1] - a[1])[0];
 
-  // Top 10 Largest Transactions (Individual)
-  const topTenTx = monthTx
-    .filter(t => t.c === "Dining" || t.c === "Groceries")
+  // Top 10 Largest Transactions
+  const topTenTx = [...diningTx, ...groceriesTx]
     .sort((a, b) => Math.abs(b.a) - Math.abs(a.a))
     .slice(0, 10);
 
@@ -67,26 +123,30 @@ const SpendingView: React.FC<SpendingViewProps> = ({ data, monthOffset, setMonth
       const sortedCatTx = [...categoryTx].sort((a,b) => new Date(b.d).getTime() - new Date(a.d).getTime());
       
       return (
-          <div className="space-y-6 pb-24 animate-fade-in h-full flex flex-col">
-              <div className="flex items-center gap-2 mb-2">
-                  <button onClick={() => setSelectedCategory(null)} className="p-2 bg-neutral-800 rounded-full text-white hover:bg-neutral-700">
-                      <ArrowLeft size={20} />
-                  </button>
-                  <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                      {selectedCategory === 'Dining' ? <Utensils className="text-orange-500" /> : <ShoppingCart className="text-emerald-500" />}
-                      {selectedCategory}
-                  </h2>
+          // CSS FIX: h-[100dvh] + flex col
+          <div className="space-y-6 pb-6 animate-fade-in h-[100dvh] flex flex-col box-border">
+              <div className="shrink-0 pt-4 px-1">
+                  <div className="flex items-center gap-2 mb-4">
+                      <button onClick={() => setSelectedCategory(null)} className="p-2 bg-neutral-800 rounded-full text-white hover:bg-neutral-700">
+                          <ArrowLeft size={20} />
+                      </button>
+                      <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                          {selectedCategory === 'Dining' ? <Utensils className="text-orange-500" /> : <ShoppingCart className="text-emerald-500" />}
+                          {selectedCategory}
+                      </h2>
+                  </div>
+
+                  <div className="bg-[#171717] border border-[#262626] rounded-3xl p-6 text-center shadow-lg mb-4">
+                      <p className="text-xs text-neutral-500 font-bold uppercase tracking-widest mb-1">Total Spent</p>
+                      <h2 className={`text-4xl font-black ${selectedCategory === 'Dining' ? 'text-orange-400' : 'text-emerald-400'}`}>
+                          ${(selectedCategory === 'Dining' ? diningTotal : groceriesTotal).toFixed(2)}
+                      </h2>
+                  </div>
               </div>
 
-              <div className="bg-[#171717] border border-[#262626] rounded-3xl p-6 text-center shadow-lg">
-                  <p className="text-xs text-neutral-500 font-bold uppercase tracking-widest mb-1">Total Spent</p>
-                  <h2 className={`text-4xl font-black ${selectedCategory === 'Dining' ? 'text-orange-400' : 'text-emerald-400'}`}>
-                      ${(selectedCategory === 'Dining' ? diningTotal : groceriesTotal).toFixed(2)}
-                  </h2>
-              </div>
-
-              <div className="flex-1 bg-[#171717] rounded-3xl overflow-hidden border border-[#262626] relative">
-                  <div className="absolute inset-0 overflow-y-auto no-scrollbar">
+              {/* CSS FIX: flex-1 + min-h-0 */}
+              <div className="flex-1 bg-[#171717] rounded-t-3xl overflow-hidden border-t border-l border-r border-[#262626] relative shadow-xl min-h-0 mx-1">
+                  <div className="h-full overflow-y-auto no-scrollbar pb-20">
                         <table className="min-w-full text-xs text-left text-neutral-400">
                             <thead className="text-[10px] text-neutral-500 uppercase bg-neutral-900 sticky top-0 z-10 shadow-sm">
                                 <tr>
@@ -123,19 +183,23 @@ const SpendingView: React.FC<SpendingViewProps> = ({ data, monthOffset, setMonth
   // --- TOP 10 VIEW ---
   if (showTopTen) {
       return (
-          <div className="space-y-6 pb-24 animate-fade-in h-full flex flex-col">
-              <div className="flex items-center gap-2 mb-2">
-                  <button onClick={() => setShowTopTen(false)} className="p-2 bg-neutral-800 rounded-full text-white hover:bg-neutral-700">
-                      <ArrowLeft size={20} />
-                  </button>
-                  <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                      <Trophy className="text-yellow-500" />
-                      Top 10 Expenses
-                  </h2>
+          // CSS FIX: h-[100dvh] + flex col
+          <div className="space-y-6 pb-6 animate-fade-in h-[100dvh] flex flex-col box-border">
+              <div className="shrink-0 pt-4 px-1 mb-4">
+                  <div className="flex items-center gap-2">
+                      <button onClick={() => setShowTopTen(false)} className="p-2 bg-neutral-800 rounded-full text-white hover:bg-neutral-700">
+                          <ArrowLeft size={20} />
+                      </button>
+                      <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                          <Trophy className="text-yellow-500" />
+                          Top 10 Expenses
+                      </h2>
+                  </div>
               </div>
 
-              <div className="flex-1 bg-[#171717] rounded-3xl overflow-hidden border border-[#262626] relative">
-                  <div className="absolute inset-0 overflow-y-auto no-scrollbar">
+              {/* CSS FIX: flex-1 + min-h-0 */}
+              <div className="flex-1 bg-[#171717] rounded-t-3xl overflow-hidden border-t border-l border-r border-[#262626] relative shadow-xl min-h-0 mx-1">
+                  <div className="h-full overflow-y-auto no-scrollbar pb-20">
                         <table className="min-w-full text-xs text-left text-neutral-400">
                             <thead className="text-[10px] text-neutral-500 uppercase bg-neutral-900 sticky top-0 z-10 shadow-sm">
                                 <tr>
@@ -151,8 +215,10 @@ const SpendingView: React.FC<SpendingViewProps> = ({ data, monthOffset, setMonth
                                         <td className="px-4 py-3 text-center font-bold text-yellow-500">{index + 1}</td>
                                         <td className="px-4 py-3 font-medium text-white truncate max-w-[140px]">
                                             {t.t}
-                                            <div className={`text-[9px] uppercase font-bold mt-0.5 ${t.c === 'Dining' ? 'text-orange-500' : 'text-emerald-500'}`}>
-                                                {t.c}
+                                            <div className={`text-[9px] uppercase font-bold mt-0.5 ${
+                                                isDining(t) ? 'text-orange-500' : 'text-emerald-500'
+                                            }`}>
+                                                {isDining(t) ? 'Dining' : 'Groceries'}
                                             </div>
                                         </td>
                                         <td className="px-4 py-3 text-right font-black text-white text-sm">
