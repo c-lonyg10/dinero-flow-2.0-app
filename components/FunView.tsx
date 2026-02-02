@@ -14,21 +14,19 @@ const FunView: React.FC<FunViewProps> = ({ data, monthOffset, setMonthOffset, on
   const currentMonth = new Date();
   currentMonth.setMonth(currentMonth.getMonth() - monthOffset);
   
-// Filter for "For Fun" category AND Keywords (The Offline Brain)
+  // 1. THE LOGIC FIX (Offline Brain)
   const funTx = data.transactions.filter(t => {
       const d = new Date(t.d);
       const isDateMatch = d.getMonth() === currentMonth.getMonth() && 
                           d.getFullYear() === currentMonth.getFullYear();
 
-      // Convert to lowercase so "Steam" and "steam" both work
       const text = t.t.toLowerCase();
       const cat = t.c.toLowerCase();
 
-      // YOUR RULES GO HERE:
+      // Keywords that define "Fun"
       const isFun = cat === "for fun" || 
                     cat === "entertainment" || 
                     cat === "hobbies" ||
-                    // Keywords to look for in the title:
                     text.includes("nintendo") ||
                     text.includes("steam") ||
                     text.includes("playstation") ||
@@ -36,14 +34,16 @@ const FunView: React.FC<FunViewProps> = ({ data, monthOffset, setMonthOffset, on
                     text.includes("cinema") ||
                     text.includes("amc") ||
                     text.includes("bar") ||
-                    text.includes("concert");
+                    text.includes("concert") ||
+                    text.includes("sams club") || // Added per your screenshot
+                    text.includes("restaurant");
 
       return isDateMatch && isFun;
   }).sort((a,b) => new Date(b.d).getTime() - new Date(a.d).getTime());
 
   const totalSpent = funTx.reduce((s, t) => s + Math.abs(t.a), 0);
 
-  // Top Fun Item
+  // Top Fun Item Logic
   const spots: {[key: string]: number} = {};
   funTx.forEach(t => {
       let n = t.t.split('#')[0].trim();
@@ -51,7 +51,6 @@ const FunView: React.FC<FunViewProps> = ({ data, monthOffset, setMonthOffset, on
   });
   const topFun = Object.entries(spots).sort((a, b) => b[1] - a[1])[0];
 
-  // Month Dropdown Options
   const monthOptions = [-1, 0, 1, 2, 3].map(i => {
       const d = new Date();
       d.setMonth(d.getMonth() - i);
@@ -64,57 +63,62 @@ const FunView: React.FC<FunViewProps> = ({ data, monthOffset, setMonthOffset, on
   });
 
   return (
-    // changed h-full to h-[100dvh] to fix mobile height issues
-    <div className="space-y-6 pb-24 animate-fade-in h-[100dvh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-2 pt-2">
-            <div className="flex items-center gap-2">
-                <button onClick={onBack} className="p-2 bg-neutral-800 rounded-full text-white hover:bg-neutral-700">
-                    <ArrowLeft size={20} />
-                </button>
-                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                    <PartyPopper className="text-pink-500" />
-                    For Fun
-                </h2>
+    // 2. THE CSS FIX (Mobile Height Bug)
+    // h-[100dvh] ensures it fits the mobile screen perfectly
+    <div className="space-y-6 pb-6 animate-fade-in h-[100dvh] flex flex-col box-border">
+        
+        {/* Header Section (shrink-0 prevents squashing) */}
+        <div className="shrink-0 pt-4 px-1">
+            <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                    <button onClick={onBack} className="p-2 bg-neutral-800 rounded-full text-white hover:bg-neutral-700">
+                        <ArrowLeft size={20} />
+                    </button>
+                    <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                        <PartyPopper className="text-pink-500" />
+                        For Fun
+                    </h2>
+                </div>
+                
+                <div className="relative">
+                     <select 
+                        value={monthOffset}
+                        onChange={(e) => setMonthOffset(Number(e.target.value))}
+                        className="appearance-none bg-neutral-900 text-neutral-400 pl-3 pr-8 py-1 rounded-full border border-neutral-800 text-xs font-bold outline-none focus:border-neutral-600 cursor-pointer hover:bg-neutral-800 transition-colors"
+                    >
+                        {monthOptions.map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                    </select>
+                    <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
+                </div>
             </div>
-            
-            <div className="relative">
-                 <select 
-                    value={monthOffset}
-                    onChange={(e) => setMonthOffset(Number(e.target.value))}
-                    className="appearance-none bg-neutral-900 text-neutral-400 pl-3 pr-8 py-1 rounded-full border border-neutral-800 text-xs font-bold outline-none focus:border-neutral-600 cursor-pointer hover:bg-neutral-800 transition-colors"
-                >
-                    {monthOptions.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                </select>
-                <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
+
+            {/* Total Card */}
+            <div className="bg-gradient-to-br from-pink-900/20 to-purple-900/20 border border-pink-500/30 rounded-3xl p-8 text-center shadow-lg relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                    <PartyPopper size={120} className="text-pink-500 rotate-12" />
+                </div>
+                <div className="relative z-10">
+                    <p className="text-xs text-pink-300 font-bold uppercase tracking-widest mb-1">Happiness Cost</p>
+                    <h2 className="text-5xl font-black text-white tracking-tighter drop-shadow-sm">
+                        ${totalSpent.toFixed(2)}
+                    </h2>
+                    {topFun && (
+                        <div className="mt-4 inline-block bg-black/30 px-3 py-1 rounded-full border border-pink-500/20 backdrop-blur-sm">
+                            <p className="text-[10px] text-pink-200">
+                                Most spent on: <span className="font-bold text-white">{topFun[0]}</span> (${topFun[1].toFixed(0)})
+                            </p>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
 
-        {/* Big Total */}
-        <div className="shrink-0 bg-gradient-to-br from-pink-900/20 to-purple-900/20 border border-pink-500/30 rounded-3xl p-8 text-center shadow-lg relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-10">
-                <PartyPopper size={120} className="text-pink-500 rotate-12" />
-            </div>
-            <div className="relative z-10">
-                <p className="text-xs text-pink-300 font-bold uppercase tracking-widest mb-1">Happiness Cost</p>
-                <h2 className="text-5xl font-black text-white tracking-tighter drop-shadow-sm">
-                    ${totalSpent.toFixed(2)}
-                </h2>
-                {topFun && (
-                    <div className="mt-4 inline-block bg-black/30 px-3 py-1 rounded-full border border-pink-500/20 backdrop-blur-sm">
-                        <p className="text-[10px] text-pink-200">
-                            Most spent on: <span className="font-bold text-white">{topFun[0]}</span> (${topFun[1].toFixed(0)})
-                        </p>
-                    </div>
-                )}
-            </div>
-        </div>
-
-        {/* List - REMOVED "absolute inset-0" causing the collapse */}
-        <div className="flex-1 bg-[#171717] rounded-3xl overflow-hidden border border-[#262626] relative shadow-xl min-h-0">
-            <div className="h-full overflow-y-auto no-scrollbar">
+        {/* List Section - The "Invisible" Fix */}
+        {/* flex-1 + min-h-0 forces the list to take remaining space properly */}
+        <div className="flex-1 bg-[#171717] rounded-t-3xl overflow-hidden border-t border-l border-r border-[#262626] relative shadow-xl min-h-0 mx-1">
+            <div className="h-full overflow-y-auto no-scrollbar pb-20">
                 <table className="min-w-full text-xs text-left text-neutral-400">
                     <thead className="text-[10px] text-neutral-500 uppercase bg-neutral-900 sticky top-0 z-10 shadow-sm">
                         <tr>
@@ -138,7 +142,7 @@ const FunView: React.FC<FunViewProps> = ({ data, monthOffset, setMonthOffset, on
                             </tr>
                         ))}
                         {funTx.length === 0 && (
-                            <tr><td colSpan={4} className="p-8 text-center text-neutral-600">No fun transactions yet this month. Treat yourself!</td></tr>
+                            <tr><td colSpan={4} className="p-8 text-center text-neutral-600">No fun transactions yet.</td></tr>
                         )}
                     </tbody>
                 </table>
@@ -146,3 +150,6 @@ const FunView: React.FC<FunViewProps> = ({ data, monthOffset, setMonthOffset, on
         </div>
     </div>
   );
+};
+
+export default FunView;
