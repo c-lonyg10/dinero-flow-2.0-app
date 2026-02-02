@@ -44,7 +44,7 @@ const TransactionsView: React.FC<TransactionsViewProps> = ({ data, onOpenTxModal
     .filter(t => t.t.toLowerCase().includes(filter.toLowerCase()));
 
   // --- P2P LOGIC ---
-  const p2pTerms = ['zelle','venmo','cash app','paypal'];
+  const p2pTerms = ['zelle','venmo','cash app','paypal', 'transfer', 'sent to', 'received from'];
   const p2pTx = monthTx.filter(t => p2pTerms.some(x => t.t.toLowerCase().includes(x)));
   
   const inAmt = p2pTx.filter(t=>t.a>0).reduce((s,t)=>s+t.a,0);
@@ -55,33 +55,32 @@ const TransactionsView: React.FC<TransactionsViewProps> = ({ data, onOpenTxModal
   const getPersonName = (raw: string) => {
       let clean = raw.toLowerCase();
       
-      const phrases = ['payment to', 'payment from', 'transfer to', 'transfer from', 'recurring payment', 'money sent', 'money received'];
-      phrases.forEach(p => clean = clean.replace(p, ' '));
+      // Known People (Hardcoded for accuracy)
+      if (clean.includes('ariel')) return 'Ariel';
+      if (clean.includes('cecy') || clean.includes('cecilia')) return 'Cecy';
+      if (clean.includes('anna')) return 'Anna';
+      if (clean.includes('carlos')) return 'Carlos';
+      if (clean.includes('allie')) return 'Allie';
 
-      const keywords = ['venmo', 'zelle', 'cash app', 'paypal', 'recur', 'pymt', 'pmt', 'trnsfr', 'des:', 'ref:', 'id:', 'web'];
-      keywords.forEach(k => clean = clean.split(k).join(' '));
+      // Clean up common junk words
+      const junk = ['payment to', 'payment from', 'transfer to', 'transfer from', 'recurring', 'money sent', 'money received', 'venmo', 'zelle', 'cash app', 'paypal', 'recur', 'pymt', 'pmt', 'trnsfr', 'des:', 'ref:', 'id:', 'web', 'mobile', 'deposit'];
+      junk.forEach(p => clean = clean.replace(p, ' '));
 
       clean = clean.replace(/[^a-z\s]/g, ' ').trim();
       
-      const tokens = clean.split(/\s+/);
+      const words = clean.split(/\s+/).filter(w => w.length > 2); // Ignore 1-2 letter words
+      if (words.length === 0) return 'Unknown';
       
-      if (clean.includes('ariel')) return 'Ariel';
-      if (clean.includes('cecy') || clean.includes('cecilia')) return 'Cecy';
-      if (tokens.includes('anna')) return 'Anna';
-      if (tokens.includes('carlos')) return 'Carlos';
-
-      const words = clean.split(/\s+/).filter(w => w.length > 0);
-      const relevantWords = words.slice(0, 2);
-
-      if (relevantWords.length === 0) return 'Unknown';
-
-      return relevantWords.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      // Return first 2 meaningful words capitalized
+      return words.slice(0, 2).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   };
 
   // Group by Person
   const peopleMap: Record<string, {name: string, in: number, out: number, txs: Transaction[]}> = {};
   p2pTx.forEach(t => {
-      const name = getPersonName(t.t) || 'Unknown';
+      const name = getPersonName(t.t);
+      if (name === 'Unknown') return; // Skip junk
+
       if(!peopleMap[name]) peopleMap[name] = { name, in: 0, out: 0, txs: [] };
       peopleMap[name].txs.push(t);
       if(t.a > 0) peopleMap[name].in += t.a;
@@ -103,44 +102,51 @@ const TransactionsView: React.FC<TransactionsViewProps> = ({ data, onOpenTxModal
       }
   };
 
-  // --- RENDER DETAIL VIEW ---
+  // --- RENDER DETAIL VIEW (PERSON) ---
   if (selectedPerson) {
       const personData = peopleMap[selectedPerson];
+      
+      // Fallback if data is missing (shouldn't happen)
+      if (!personData) return null;
+
       return (
-          <div className="space-y-6 pb-24 animate-fade-in h-full flex flex-col">
-              <div className="flex items-center gap-2 mb-4">
-                  <button onClick={() => setSelectedPerson(null)} className="p-2 bg-neutral-800 rounded-full text-white hover:bg-neutral-700">
-                      <ArrowLeft size={20} />
-                  </button>
-                  <h2 className="text-2xl font-bold text-white truncate">{selectedPerson}</h2>
+          // CSS FIX: h-[100dvh] + flex col
+          <div className="space-y-6 pb-6 animate-fade-in h-[100dvh] flex flex-col box-border">
+              <div className="shrink-0 pt-4 px-1 mb-4">
+                  <div className="flex items-center gap-2 mb-4">
+                      <button onClick={() => setSelectedPerson(null)} className="p-2 bg-neutral-800 rounded-full text-white hover:bg-neutral-700">
+                          <ArrowLeft size={20} />
+                      </button>
+                      <h2 className="text-2xl font-bold text-white truncate">{selectedPerson}</h2>
+                  </div>
+
+                  <div className="bg-[#171717] border border-[#262626] p-6 rounded-3xl flex justify-between items-center shadow-lg">
+                       <div className="flex items-center gap-3">
+                           <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-inner">
+                               {selectedPerson.charAt(0)}
+                           </div>
+                           <div>
+                               <p className="text-xs text-neutral-400 font-bold uppercase">Net Total</p>
+                               <p className={`text-xl font-black ${personData.in - personData.out > 0 ? 'text-emerald-400' : 'text-white'}`}>
+                                   ${(personData.in - personData.out).toFixed(2)}
+                               </p>
+                           </div>
+                       </div>
+                       <div className="text-right space-y-1">
+                           <p className="text-xs font-bold text-emerald-400">+{personData.in.toFixed(2)}</p>
+                           <p className="text-xs font-bold text-red-400">-{personData.out.toFixed(2)}</p>
+                       </div>
+                  </div>
               </div>
 
-              <div className="bg-[#171717] border border-[#262626] p-6 rounded-3xl flex justify-between items-center shadow-lg">
-                   <div className="flex items-center gap-3">
-                       <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-inner">
-                           {selectedPerson.charAt(0)}
-                       </div>
-                       <div>
-                           <p className="text-xs text-neutral-400 font-bold uppercase">Net Total</p>
-                           <p className={`text-xl font-black ${personData.in - personData.out > 0 ? 'text-emerald-400' : 'text-white'}`}>
-                               ${(personData.in - personData.out).toFixed(2)}
-                           </p>
-                       </div>
-                   </div>
-                   <div className="text-right space-y-1">
-                       <p className="text-xs font-bold text-emerald-400">+{personData.in.toFixed(2)}</p>
-                       <p className="text-xs font-bold text-red-400">-{personData.out.toFixed(2)}</p>
-                   </div>
-              </div>
-
-              <div className="flex-1 bg-[#171717] rounded-3xl overflow-hidden border border-[#262626] relative">
-                  <div className="absolute inset-0 overflow-y-auto no-scrollbar">
+              {/* CSS FIX: flex-1 + min-h-0 */}
+              <div className="flex-1 bg-[#171717] rounded-t-3xl overflow-hidden border-t border-l border-r border-[#262626] relative shadow-xl min-h-0 mx-1">
+                  <div className="h-full overflow-y-auto no-scrollbar pb-20">
                         <table className="min-w-full text-xs text-left text-neutral-400">
                             <thead className="text-[10px] text-neutral-500 uppercase bg-neutral-900 sticky top-0 z-10 shadow-sm">
                                 <tr>
                                     <th className="px-4 py-3">Date</th>
                                     <th className="px-4 py-3">Note</th>
-                                    <th className="px-4 py-3">Category</th>
                                     <th className="px-4 py-3 text-right">Amount</th>
                                 </tr>
                             </thead>
@@ -152,12 +158,7 @@ const TransactionsView: React.FC<TransactionsViewProps> = ({ data, onOpenTxModal
                                         className="hover:bg-neutral-800/50 transition-colors cursor-pointer active:bg-neutral-800"
                                     >
                                         <td className="px-4 py-3 text-neutral-500 font-mono">{t.d.substring(5)}</td>
-                                        <td className="px-4 py-3 font-medium text-white truncate max-w-[120px]">{t.t}</td>
-                                        <td className="px-4 py-3">
-                                            <span className={`px-2 py-1 rounded-md text-[9px] font-bold border ${getCategoryBadgeClass(t.c)}`}>
-                                                {t.c}
-                                            </span>
-                                        </td>
+                                        <td className="px-4 py-3 font-medium text-white truncate max-w-[150px]">{t.t}</td>
                                         <td className={`px-4 py-3 text-right font-bold ${t.a > 0 ? 'text-emerald-400' : 'text-neutral-300'}`}>
                                             {Math.abs(t.a).toFixed(2)}
                                         </td>
