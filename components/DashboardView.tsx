@@ -22,13 +22,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data, onSwitchTab, onOpen
   });
 
   // --- NEW MODULE: CASH FLOW LOGIC ---
-  // Rule: Any money coming in (+) is Income. Any money going out (-) is Expense.
   const flowIncome = monthTx.filter(t => t.a > 0).reduce((s, t) => s + t.a, 0);
+  // Fixed Typo: Defined as 'flowExpense' (singular)
   const flowExpense = monthTx.filter(t => t.a < 0).reduce((s, t) => s + Math.abs(t.a), 0);
   const flowNet = flowIncome - flowExpense;
   // -----------------------------------
 
-  // Specific Income Stats (Old Logic - still kept for the stats card below)
+  // Specific Income Stats
   const gigIncome = monthTx
     .filter(t => t.a > 0 && !t.t.toLowerCase().includes('elevate') && !t.t.toLowerCase().includes('payroll'))
     .reduce((s, t) => s + t.a, 0);
@@ -97,7 +97,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data, onSwitchTab, onOpen
                     <span className="text-[10px] text-emerald-500 font-bold uppercase">In</span>
                 </div>
                 <p className="text-lg font-black text-white relative z-10">${flowIncome.toFixed(0)}</p>
-                {/* Visual decoration */}
                 <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-emerald-500/10 rounded-full blur-lg"></div>
             </div>
 
@@ -107,8 +106,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data, onSwitchTab, onOpen
                     <TrendingDown size={14} className="text-red-500" />
                     <span className="text-[10px] text-red-500 font-bold uppercase">Out</span>
                 </div>
-                <p className="text-lg font-black text-white relative z-10">${flowExpenses.toFixed(0)}</p>
-                {/* Visual decoration */}
+                {/* FIX IS HERE: Used 'flowExpense' (singular) instead of plural */}
+                <p className="text-lg font-black text-white relative z-10">${flowExpense.toFixed(0)}</p>
                 <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-red-500/10 rounded-full blur-lg"></div>
             </div>
         </div>
