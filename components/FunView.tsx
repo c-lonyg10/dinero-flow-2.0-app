@@ -14,7 +14,7 @@ const FunView: React.FC<FunViewProps> = ({ data, monthOffset, setMonthOffset, on
   const currentMonth = new Date();
   currentMonth.setMonth(currentMonth.getMonth() - monthOffset);
   
-  // 1. THE LOGIC FIX (Offline Brain)
+  // 1. THE LOGIC FIX: REMOVED "Sams Club" from here
   const funTx = data.transactions.filter(t => {
       const d = new Date(t.d);
       const isDateMatch = d.getMonth() === currentMonth.getMonth() && 
@@ -35,7 +35,7 @@ const FunView: React.FC<FunViewProps> = ({ data, monthOffset, setMonthOffset, on
                     text.includes("amc") ||
                     text.includes("bar") ||
                     text.includes("concert") ||
-                    text.includes("sams club") || // Added per your screenshot
+                    // Removed "sams club" so it doesn't show up here anymore
                     text.includes("restaurant");
 
       return isDateMatch && isFun;
@@ -63,11 +63,9 @@ const FunView: React.FC<FunViewProps> = ({ data, monthOffset, setMonthOffset, on
   });
 
   return (
-    // 2. THE CSS FIX (Mobile Height Bug)
-    // h-[100dvh] ensures it fits the mobile screen perfectly
     <div className="space-y-6 pb-6 animate-fade-in h-[100dvh] flex flex-col box-border">
         
-        {/* Header Section (shrink-0 prevents squashing) */}
+        {/* Header Section */}
         <div className="shrink-0 pt-4 px-1">
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
@@ -115,8 +113,7 @@ const FunView: React.FC<FunViewProps> = ({ data, monthOffset, setMonthOffset, on
             </div>
         </div>
 
-        {/* List Section - The "Invisible" Fix */}
-        {/* flex-1 + min-h-0 forces the list to take remaining space properly */}
+        {/* List Section */}
         <div className="flex-1 bg-[#171717] rounded-t-3xl overflow-hidden border-t border-l border-r border-[#262626] relative shadow-xl min-h-0 mx-1">
             <div className="h-full overflow-y-auto no-scrollbar pb-20">
                 <table className="min-w-full text-xs text-left text-neutral-400">

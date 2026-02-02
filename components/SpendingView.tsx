@@ -27,7 +27,6 @@ const SpendingView: React.FC<SpendingViewProps> = ({ data, monthOffset, setMonth
       const text = t.t.toLowerCase();
       const cat = t.c ? t.c.toLowerCase() : "";
       
-      // Strict category check OR keyword check
       if (cat === "dining" || cat === "restaurants") return true;
       
       return text.includes("mcdonald") || 
@@ -67,6 +66,9 @@ const SpendingView: React.FC<SpendingViewProps> = ({ data, monthOffset, setMonth
              text.includes("whole foods") || 
              text.includes("market") ||
              text.includes("supermarket") ||
+             // ADDED SAMS CLUB HERE:
+             text.includes("sams club") ||
+             text.includes("samsclub") ||
              text.includes("grocery");
   };
 
@@ -95,6 +97,7 @@ const SpendingView: React.FC<SpendingViewProps> = ({ data, monthOffset, setMonth
       if(lower.includes("food lion")) n="Food Lion";
       if(lower.includes("mcdonald")) n="McDonalds";
       if(lower.includes("walmart")) n="Walmart";
+      if(lower.includes("sams")) n="Sams Club";
 
       spots[n] = (spots[n] || 0) + Math.abs(t.a);
   });
@@ -123,7 +126,6 @@ const SpendingView: React.FC<SpendingViewProps> = ({ data, monthOffset, setMonth
       const sortedCatTx = [...categoryTx].sort((a,b) => new Date(b.d).getTime() - new Date(a.d).getTime());
       
       return (
-          // CSS FIX: h-[100dvh] + flex col
           <div className="space-y-6 pb-6 animate-fade-in h-[100dvh] flex flex-col box-border">
               <div className="shrink-0 pt-4 px-1">
                   <div className="flex items-center gap-2 mb-4">
@@ -144,7 +146,6 @@ const SpendingView: React.FC<SpendingViewProps> = ({ data, monthOffset, setMonth
                   </div>
               </div>
 
-              {/* CSS FIX: flex-1 + min-h-0 */}
               <div className="flex-1 bg-[#171717] rounded-t-3xl overflow-hidden border-t border-l border-r border-[#262626] relative shadow-xl min-h-0 mx-1">
                   <div className="h-full overflow-y-auto no-scrollbar pb-20">
                         <table className="min-w-full text-xs text-left text-neutral-400">
@@ -183,7 +184,6 @@ const SpendingView: React.FC<SpendingViewProps> = ({ data, monthOffset, setMonth
   // --- TOP 10 VIEW ---
   if (showTopTen) {
       return (
-          // CSS FIX: h-[100dvh] + flex col
           <div className="space-y-6 pb-6 animate-fade-in h-[100dvh] flex flex-col box-border">
               <div className="shrink-0 pt-4 px-1 mb-4">
                   <div className="flex items-center gap-2">
@@ -197,7 +197,6 @@ const SpendingView: React.FC<SpendingViewProps> = ({ data, monthOffset, setMonth
                   </div>
               </div>
 
-              {/* CSS FIX: flex-1 + min-h-0 */}
               <div className="flex-1 bg-[#171717] rounded-t-3xl overflow-hidden border-t border-l border-r border-[#262626] relative shadow-xl min-h-0 mx-1">
                   <div className="h-full overflow-y-auto no-scrollbar pb-20">
                         <table className="min-w-full text-xs text-left text-neutral-400">
