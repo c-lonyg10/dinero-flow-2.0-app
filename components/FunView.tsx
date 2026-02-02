@@ -14,12 +14,31 @@ const FunView: React.FC<FunViewProps> = ({ data, monthOffset, setMonthOffset, on
   const currentMonth = new Date();
   currentMonth.setMonth(currentMonth.getMonth() - monthOffset);
   
-  // Filter for "For Fun" category in the selected month
+// Filter for "For Fun" category AND Keywords (The Offline Brain)
   const funTx = data.transactions.filter(t => {
       const d = new Date(t.d);
-      return d.getMonth() === currentMonth.getMonth() && 
-             d.getFullYear() === currentMonth.getFullYear() &&
-             t.c === "For Fun";
+      const isDateMatch = d.getMonth() === currentMonth.getMonth() && 
+                          d.getFullYear() === currentMonth.getFullYear();
+
+      // Convert to lowercase so "Steam" and "steam" both work
+      const text = t.t.toLowerCase();
+      const cat = t.c.toLowerCase();
+
+      // YOUR RULES GO HERE:
+      const isFun = cat === "for fun" || 
+                    cat === "entertainment" || 
+                    cat === "hobbies" ||
+                    // Keywords to look for in the title:
+                    text.includes("nintendo") ||
+                    text.includes("steam") ||
+                    text.includes("playstation") ||
+                    text.includes("spotify") ||
+                    text.includes("cinema") ||
+                    text.includes("amc") ||
+                    text.includes("bar") ||
+                    text.includes("concert");
+
+      return isDateMatch && isFun;
   }).sort((a,b) => new Date(b.d).getTime() - new Date(a.d).getTime());
 
   const totalSpent = funTx.reduce((s, t) => s + Math.abs(t.a), 0);
