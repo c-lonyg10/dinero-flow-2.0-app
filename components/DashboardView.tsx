@@ -1,6 +1,6 @@
 import React from 'react';
 import { AppData } from '../types';
-import { Wallet, Briefcase, Flag, Timer, Infinity as InfinityIcon, ChevronRight, Utensils, Sword, PlusCircle, PartyPopper } from 'lucide-react';
+import { Wallet, Briefcase, Flag, Timer, Infinity as InfinityIcon, ChevronRight, Utensils, Sword, PlusCircle, PartyPopper, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
 
 interface DashboardViewProps {
   data: AppData;
@@ -15,11 +15,20 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data, onSwitchTab, onOpen
   const totalTx = data.transactions.reduce((acc, t) => acc + t.a, 0);
   const balance = (data.budget.startingBalance || 0) + totalTx;
 
-  // Calculate Income
+  // Filter for Current Month
   const monthTx = data.transactions.filter(t => {
     const d = new Date(t.d);
     return d.getMonth() === currentMonth.getMonth() && d.getFullYear() === currentMonth.getFullYear();
   });
+
+  // --- NEW MODULE: CASH FLOW LOGIC ---
+  // Rule: Any money coming in (+) is Income. Any money going out (-) is Expense.
+  const flowIncome = monthTx.filter(t => t.a > 0).reduce((s, t) => s + t.a, 0);
+  const flowExpense = monthTx.filter(t => t.a < 0).reduce((s, t) => s + Math.abs(t.a), 0);
+  const flowNet = flowIncome - flowExpense;
+  // -----------------------------------
+
+  // Specific Income Stats (Old Logic - still kept for the stats card below)
   const gigIncome = monthTx
     .filter(t => t.a > 0 && !t.t.toLowerCase().includes('elevate') && !t.t.toLowerCase().includes('payroll'))
     .reduce((s, t) => s + t.a, 0);
@@ -68,8 +77,45 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data, onSwitchTab, onOpen
           </p>
         </div>
       </div>
+
+      {/* --- NEW MODULE: CASH FLOW CARD --- */}
+      <div className="bg-[#171717] border border-[#262626] p-5 rounded-3xl shadow-md">
+        <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-2">
+                <DollarSign size={18} className="text-neutral-400" />
+                <h3 className="text-xs text-neutral-400 font-bold uppercase tracking-widest">Monthly Flow</h3>
+            </div>
+            <span className={`text-sm font-black px-2 py-1 rounded-md ${flowNet >= 0 ? 'bg-emerald-900/30 text-emerald-400' : 'bg-red-900/30 text-red-400'}`}>
+                {flowNet >= 0 ? '+' : ''}${Math.abs(flowNet).toFixed(2)} Net
+            </span>
+        </div>
+        <div className="flex gap-3">
+            {/* Income Side */}
+            <div className="flex-1 bg-neutral-900/50 rounded-2xl p-3 border border-emerald-900/20 relative overflow-hidden">
+                <div className="flex items-center gap-1 mb-1 relative z-10">
+                    <TrendingUp size={14} className="text-emerald-500" />
+                    <span className="text-[10px] text-emerald-500 font-bold uppercase">In</span>
+                </div>
+                <p className="text-lg font-black text-white relative z-10">${flowIncome.toFixed(0)}</p>
+                {/* Visual decoration */}
+                <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-emerald-500/10 rounded-full blur-lg"></div>
+            </div>
+
+            {/* Expense Side */}
+            <div className="flex-1 bg-neutral-900/50 rounded-2xl p-3 border border-red-900/20 relative overflow-hidden">
+                <div className="flex items-center gap-1 mb-1 relative z-10">
+                    <TrendingDown size={14} className="text-red-500" />
+                    <span className="text-[10px] text-red-500 font-bold uppercase">Out</span>
+                </div>
+                <p className="text-lg font-black text-white relative z-10">${flowExpenses.toFixed(0)}</p>
+                {/* Visual decoration */}
+                <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-red-500/10 rounded-full blur-lg"></div>
+            </div>
+        </div>
+      </div>
+      {/* ---------------------------------- */}
       
-      {/* Fun Bubble - Interactive */}
+      {/* Fun Bubble */}
       <div className="flex justify-center">
         <button 
           onClick={() => onSwitchTab('fun')}
@@ -80,7 +126,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data, onSwitchTab, onOpen
              <span className="text-[10px] text-pink-200 font-bold uppercase tracking-wider">For Fun</span>
              <span className="text-xl font-black text-white drop-shadow-md">${funTotal.toFixed(0)}</span>
           </div>
-          {/* Shine effect */}
           <div className="absolute top-2 right-4 w-6 h-3 bg-white/20 rounded-full rotate-[-45deg] blur-sm"></div>
         </button>
       </div>
