@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sword, Trophy, Plus, Trash2, X, Check, Save, TrendingDown, Handshake, Car, GraduationCap } from 'lucide-react';
+import { Sword, Trophy, Plus, Trash2, X, Check, Save, TrendingDown, Handshake, Car, GraduationCap, DollarSign } from 'lucide-react';
 import { AppData } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
@@ -12,6 +12,7 @@ interface DebtItem {
     name: string;
     totalAmount: number;
     prePaid: number;
+    monthlyPayment?: number; // <--- NEW FIELD ADDED HERE
     icon: string; 
     color: string;
     dueDay?: string;
@@ -25,7 +26,6 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
 
     // Load Debts
     useEffect(() => {
-        // CHANGED TO v3 TO FORCE A RESET
         const saved = localStorage.getItem('moneyflow_debts_v3'); 
         if (saved) {
             setDebts(JSON.parse(saved));
@@ -37,6 +37,7 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
                     name: "Tio Frank", 
                     totalAmount: 7875, 
                     prePaid: 4437, 
+                    monthlyPayment: 787.50, // Added based on your previous data
                     icon: 'handshake', 
                     color: 'blue',
                     dueDay: '15th',
@@ -47,6 +48,7 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
                     name: "Wells Fargo", 
                     totalAmount: 8022.57, 
                     prePaid: 7006.57, 
+                    monthlyPayment: 170, // Estimate based on nextAmt
                     icon: 'car', 
                     color: 'indigo',
                     dueDay: '11th',
@@ -57,6 +59,7 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
                     name: "Student Loan", 
                     totalAmount: 8500, 
                     prePaid: 2000, 
+                    monthlyPayment: 154, // Estimate
                     icon: 'school', 
                     color: 'purple',
                     dueDay: '5th',
@@ -68,7 +71,6 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
 
     // Save Debts
     useEffect(() => {
-        // CHANGED TO v3 TO MATCH
         localStorage.setItem('moneyflow_debts_v3', JSON.stringify(debts));
     }, [debts]);
 
@@ -102,6 +104,7 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
             name: newDebt.name,
             totalAmount: Number(newDebt.totalAmount),
             prePaid: Number(newDebt.prePaid || 0),
+            monthlyPayment: Number(newDebt.monthlyPayment || 0), // <--- SAVING THE NEW FIELD
             icon: newDebt.icon || 'card',
             color: newDebt.color || 'blue',
             dueDay: newDebt.dueDay || '1st',
@@ -184,7 +187,10 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-bold text-white">{d.name}</h3>
-                                        <p className="text-xs text-neutral-400 uppercase font-bold tracking-wide">Due: {d.dueDay}</p>
+                                        {/* UPDATED HEADER: Displays Due Date AND Monthly Payment */}
+                                        <p className="text-xs text-neutral-400 uppercase font-bold tracking-wide">
+                                            Due: {d.dueDay} {d.monthlyPayment ? `• $${d.monthlyPayment}/mo` : ''}
+                                        </p>
                                     </div>
                                 </div>
                                 <div className="text-right">
@@ -262,6 +268,13 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
                                 <label className="text-xs font-bold text-neutral-500 uppercase ml-1">Total Debt Amount</label>
                                 <input type="number" placeholder="15000" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white" onChange={e => setNewDebt({...newDebt, totalAmount: Number(e.target.value)})} />
                             </div>
+                            
+                            {/* NEW: MONTHLY PAYMENT INPUT */}
+                            <div>
+                                <label className="text-xs font-bold text-neutral-500 uppercase ml-1">Monthly Payment</label>
+                                <input type="number" placeholder="e.g. 250" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white" onChange={e => setNewDebt({...newDebt, monthlyPayment: Number(e.target.value)})} />
+                            </div>
+
                             <div>
                                 <label className="text-xs font-bold text-neutral-500 uppercase ml-1">Already Paid (History)</label>
                                 <input type="number" placeholder="0" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white" onChange={e => setNewDebt({...newDebt, prePaid: Number(e.target.value)})} />
