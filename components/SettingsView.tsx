@@ -27,7 +27,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       onImport(e.target.files[0]);
-      e.target.value = ''; // Reset so you can select the same file again
+      e.target.value = ''; 
     }
   };
 
@@ -35,9 +35,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({
       if (e.target.files && e.target.files[0]) {
           const file = e.target.files[0];
           // Debug Alert to prove the button works
-          alert(`File Selected: ${file.name} (${file.size} bytes). Starting restore...`);
+          alert(`File Selected: ${file.name}\nSize: ${file.size} bytes\n\nStarting restore...`);
           onRestore(file);
-          e.target.value = ''; // Reset input
+          e.target.value = ''; 
       }
   };
 
@@ -84,8 +84,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                     <RefreshCw size={18} /> Restore
                 </button>
             </div>
-            {/* CHANGED accept to "*" to fix Android grey-out issue */}
-            <input type="file" ref={restoreInputRef} onChange={handleRestoreChange} accept="*" className="hidden" />
+            {/* REMOVED 'accept' ATTRIBUTE COMPLETELY to allow picking any file */}
+            <input type="file" ref={restoreInputRef} onChange={handleRestoreChange} className="hidden" />
         </div>
 
         {/* 3. ARCHIVE CARD (PURPLE) */}
@@ -141,7 +141,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
 
         {/* FOOTER */}
         <div className="text-center text-neutral-600 text-[10px] py-4">
-            <p className="font-bold">Dinero Flow v3.7</p>
+            <p className="font-bold text-emerald-500">Dinero Flow v3.8 (Unlocked)</p>
             <p>Designed for C-Lo</p>
         </div>
     </div>
