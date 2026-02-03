@@ -425,7 +425,7 @@ const App: React.FC = () => {
             />
           }
           
-          {activeTab === 'debt' && <DebtView />}
+          {activeTab === 'debt' && <DebtView data={data} />}
           
           {(activeTab as any) === 'categories' && 
              <CategoriesView 
