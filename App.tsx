@@ -87,33 +87,28 @@ const App: React.FC = () => {
     if(confirm("Reset all data?")) {
       setData(INITIAL_DATA);
       localStorage.removeItem('moneyflow_data_v35');
-      // Also clear debts
       localStorage.removeItem('moneyflow_debts_v3');
     }
   };
 
-  // --- NEW EXPORT FUNCTION ---
+  // --- EXPORT FUNCTION ---
   const handleExportData = () => {
-      // 1. Gather all data (App Data + Debt Data)
       const debts = localStorage.getItem('moneyflow_debts_v3');
       const exportObj = {
           appData: data,
           debtData: debts ? JSON.parse(debts) : []
       };
 
-      // 2. Create a blob
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj));
-      
-      // 3. Trigger Download
       const downloadAnchorNode = document.createElement('a');
       downloadAnchorNode.setAttribute("href", dataStr);
       downloadAnchorNode.setAttribute("download", "moneyflow_backup_" + new Date().toISOString().slice(0,10) + ".json");
-      document.body.appendChild(downloadAnchorNode); // required for firefox
+      document.body.appendChild(downloadAnchorNode);
       downloadAnchorNode.click();
       downloadAnchorNode.remove();
   };
 
-  // --- NEW RESTORE FUNCTION ---
+  // --- RESTORE FUNCTION ---
   const handleRestoreData = (file: File) => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -121,16 +116,13 @@ const App: React.FC = () => {
               const text = e.target?.result as string;
               const parsed = JSON.parse(text);
 
-              // Check if it's our new full backup format or legacy
               if (parsed.appData) {
-                  // Full Backup
                   setData(parsed.appData);
                   if (parsed.debtData) {
                       localStorage.setItem('moneyflow_debts_v3', JSON.stringify(parsed.debtData));
                   }
                   alert("Restore Successful! Please refresh the app.");
               } else {
-                  // Legacy Backup (Just AppData)
                   setData(parsed);
                   alert("Legacy Restore Successful!");
               }
@@ -139,6 +131,38 @@ const App: React.FC = () => {
           }
       };
       reader.readAsText(file);
+  };
+
+  // --- NEW: ARCHIVE FUNCTION ---
+  const handleArchiveData = () => {
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      
+      const oldTxs = data.transactions.filter(t => new Date(t.d) < oneYearAgo);
+      
+      if (oldTxs.length === 0) {
+          alert("No transactions older than 1 year to archive.");
+          return;
+      }
+
+      if (!confirm(`Found ${oldTxs.length} old transactions. Archive them to clean up your data? (Their total value will be added to your Starting Balance so your math stays correct).`)) return;
+
+      // Calculate net value of old transactions
+      const netChange = oldTxs.reduce((sum, t) => sum + t.a, 0);
+
+      // Keep only new transactions
+      const newTxs = data.transactions.filter(t => new Date(t.d) >= oneYearAgo);
+      
+      setData(prev => ({
+          ...prev,
+          budget: { 
+              ...prev.budget, 
+              startingBalance: (prev.budget.startingBalance || 0) + netChange 
+          },
+          transactions: newTxs
+      }));
+      
+      alert("Archive complete! Old data compacted into Starting Balance.");
   };
 
   const handleImportCSV = (file: File) => {
@@ -511,9 +535,10 @@ const App: React.FC = () => {
                 onUpdateBudget={handleUpdateBudget} 
                 onReset={handleReset} 
                 onImport={handleImportCSV} 
-                // Passed these new functions down:
+                // WIRED UP ALL 3 FUNCTIONS:
                 onExport={handleExportData}
                 onRestore={handleRestoreData}
+                onArchive={handleArchiveData} // NEW
             />
           }
         </div>
@@ -521,8 +546,7 @@ const App: React.FC = () => {
 
       <Navbar activeTab={activeTab} onSwitch={setActiveTab} />
 
-      {/* Modals ... (Rest of file is same) */}
-      {/* Transaction Modal */}
+      {/* Modals unchanged */}
       {isTxModalOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-[#171717] border border-[#262626] rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
@@ -559,7 +583,6 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Bill Modal */}
       {isBillModalOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-[#171717] border border-[#262626] rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl">
@@ -601,7 +624,6 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Import Conflict Modal */}
       {isImportModalOpen && importConflicts.length > 0 && (
          <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
            <div className="bg-[#171717] border border-[#262626] rounded-3xl w-full max-w-lg p-6 flex flex-col max-h-[85vh] shadow-2xl">

@@ -1,18 +1,26 @@
 import React, { useRef } from 'react';
 import { AppData } from '../types';
-import { Settings, RefreshCw, Upload, Download, Trash2, Github, LogOut } from 'lucide-react';
+import { Settings, RefreshCw, Upload, Download, Trash2, Github, LogOut, History, Wallet, FileText, Cloud } from 'lucide-react';
 
 interface SettingsViewProps {
   data: AppData;
   onUpdateBudget: (key: string, val: number) => void;
   onReset: () => void;
   onImport: (file: File) => void;
-  // New Props
   onExport: () => void;
   onRestore: (file: File) => void;
+  onArchive: () => void; // Added the missing prop
 }
 
-const SettingsView: React.FC<SettingsViewProps> = ({ data, onUpdateBudget, onReset, onImport, onExport, onRestore }) => {
+const SettingsView: React.FC<SettingsViewProps> = ({ 
+    data, 
+    onUpdateBudget, 
+    onReset, 
+    onImport, 
+    onExport, 
+    onRestore, 
+    onArchive 
+}) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const restoreInputRef = useRef<HTMLInputElement>(null);
 
@@ -34,19 +42,75 @@ const SettingsView: React.FC<SettingsViewProps> = ({ data, onUpdateBudget, onRes
             <Settings className="text-neutral-400" size={32} /> Settings
         </h2>
 
-        {/* Budget Section */}
-        <div className="bg-[#171717] border border-[#262626] rounded-3xl overflow-hidden">
-            <div className="p-4 border-b border-[#262626] bg-[#262626]/50">
-                <h3 className="font-bold text-white text-sm uppercase tracking-wide">Fixed Monthly Income</h3>
+        {/* 1. IMPORT CARD (GREEN) */}
+        <div className="p-5 rounded-3xl border border-emerald-900/30 bg-emerald-950/20 shadow-lg">
+            <div className="flex items-center gap-3 mb-3">
+                <FileText className="text-emerald-500" size={24} />
+                <h3 className="font-bold text-lg text-white">Import Chase CSV</h3>
             </div>
-            <div className="p-6">
-                 <div className="mb-4">
+            <p className="text-xs text-neutral-400 mb-4">Import transactions from your bank to populate analytics.</p>
+            <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full py-3 bg-emerald-900/40 border border-emerald-500/30 text-emerald-400 font-bold rounded-xl hover:bg-emerald-900/60 transition-colors"
+            >
+                Select CSV File
+            </button>
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".csv" className="hidden" />
+        </div>
+
+        {/* 2. BACKUP & RESTORE CARD (BLUE) */}
+        <div className="p-5 rounded-3xl border border-blue-900/30 bg-blue-950/20 shadow-lg">
+            <div className="flex items-center gap-3 mb-3">
+                <Cloud className="text-blue-500" size={24} />
+                <h3 className="font-bold text-lg text-white">Backup & Restore</h3>
+            </div>
+            <p className="text-xs text-neutral-400 mb-4">Save your data locally or restore from a file.</p>
+            <div className="grid grid-cols-2 gap-3">
+                <button 
+                    onClick={onExport}
+                    className="flex items-center justify-center gap-2 py-3 bg-blue-900/40 border border-blue-500/30 text-blue-400 font-bold rounded-xl hover:bg-blue-900/60 transition-colors"
+                >
+                    <Download size={18} /> Download
+                </button>
+                <button 
+                    onClick={() => restoreInputRef.current?.click()}
+                    className="flex items-center justify-center gap-2 py-3 bg-neutral-800 border border-neutral-700 text-white font-bold rounded-xl hover:bg-neutral-700 transition-colors"
+                >
+                    <RefreshCw size={18} /> Restore
+                </button>
+            </div>
+            <input type="file" ref={restoreInputRef} onChange={handleRestoreChange} accept=".json" className="hidden" />
+        </div>
+
+        {/* 3. ARCHIVE CARD (PURPLE) */}
+        <div className="p-5 rounded-3xl border border-purple-900/30 bg-purple-950/20 shadow-lg">
+            <div className="flex items-center gap-3 mb-3">
+                <History className="text-purple-500" size={24} />
+                <h3 className="font-bold text-lg text-white">Archive Old Data</h3>
+            </div>
+            <p className="text-xs text-neutral-400 mb-4">Compresses history &gt; 1 year into your Starting Balance.</p>
+            <button 
+                onClick={onArchive}
+                className="w-full py-3 bg-purple-900/40 border border-purple-500/30 text-purple-400 font-bold rounded-xl hover:bg-purple-900/60 transition-colors"
+            >
+                Archive Old Transactions
+            </button>
+        </div>
+
+        {/* 4. FINANCIALS (NEUTRAL) */}
+        <div className="bg-[#171717] border border-[#262626] rounded-3xl overflow-hidden shadow-lg">
+            <div className="p-4 border-b border-[#262626] flex items-center gap-2 bg-[#262626]/50">
+                <Wallet size={18} className="text-neutral-400"/>
+                <h3 className="font-bold text-white text-sm uppercase tracking-wide">Financials</h3>
+            </div>
+            <div className="p-6 space-y-4">
+                 <div>
                     <label className="block text-xs font-bold text-neutral-500 uppercase mb-2">Starting Balance</label>
                     <input 
                         type="number" 
                         value={data.budget.startingBalance} 
                         onChange={(e) => onUpdateBudget('startingBalance', parseFloat(e.target.value) || 0)}
-                        className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-4 text-2xl font-bold text-white focus:outline-none focus:border-blue-500" 
+                        className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-4 text-xl font-bold text-white focus:outline-none focus:border-blue-500" 
                     />
                  </div>
                  <div>
@@ -55,88 +119,24 @@ const SettingsView: React.FC<SettingsViewProps> = ({ data, onUpdateBudget, onRes
                         type="number" 
                         value={data.budget.avgIncome} 
                         onChange={(e) => onUpdateBudget('avgIncome', parseFloat(e.target.value) || 0)}
-                        className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-4 text-2xl font-bold text-emerald-400 focus:outline-none focus:border-emerald-500" 
+                        className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-4 text-xl font-bold text-emerald-400 focus:outline-none focus:border-emerald-500" 
                     />
                  </div>
             </div>
         </div>
 
-        {/* Data Management Section */}
-        <div className="bg-[#171717] border border-[#262626] rounded-3xl overflow-hidden">
-            <div className="p-4 border-b border-[#262626] bg-[#262626]/50">
-                <h3 className="font-bold text-white text-sm uppercase tracking-wide">Data Management</h3>
-            </div>
-            <div className="p-2">
-                {/* Import Chase CSV */}
-                <div onClick={() => fileInputRef.current?.click()} className="p-4 hover:bg-neutral-800 rounded-2xl cursor-pointer flex items-center gap-4 transition-colors group">
-                    <div className="bg-blue-900/20 p-3 rounded-xl text-blue-400 group-hover:scale-110 transition-transform">
-                        <Upload size={20} />
-                    </div>
-                    <div>
-                        <h4 className="font-bold text-white">Import Chase CSV</h4>
-                        <p className="text-xs text-neutral-500">Add transactions from your bank export</p>
-                    </div>
-                    <input 
-                        type="file" 
-                        ref={fileInputRef} 
-                        onChange={handleFileChange} 
-                        accept=".csv" 
-                        className="hidden" 
-                    />
-                </div>
+        {/* FACTORY RESET */}
+        <button 
+            onClick={onReset}
+            className="w-full flex items-center justify-center gap-2 py-4 text-red-500 font-bold text-xs uppercase tracking-widest hover:bg-red-900/10 rounded-xl transition-colors"
+        >
+            <Trash2 size={16} /> Factory Reset App Data
+        </button>
 
-                {/* Backup Data */}
-                <div onClick={onExport} className="p-4 hover:bg-neutral-800 rounded-2xl cursor-pointer flex items-center gap-4 transition-colors group">
-                    <div className="bg-emerald-900/20 p-3 rounded-xl text-emerald-400 group-hover:scale-110 transition-transform">
-                        <Download size={20} />
-                    </div>
-                    <div>
-                        <h4 className="font-bold text-white">Backup Data</h4>
-                        <p className="text-xs text-neutral-500">Download a full backup file (.json)</p>
-                    </div>
-                </div>
-
-                {/* Restore Data */}
-                <div onClick={() => restoreInputRef.current?.click()} className="p-4 hover:bg-neutral-800 rounded-2xl cursor-pointer flex items-center gap-4 transition-colors group">
-                    <div className="bg-purple-900/20 p-3 rounded-xl text-purple-400 group-hover:scale-110 transition-transform">
-                        <RefreshCw size={20} />
-                    </div>
-                    <div>
-                        <h4 className="font-bold text-white">Restore Backup</h4>
-                        <p className="text-xs text-neutral-500">Load data from a backup file</p>
-                    </div>
-                    <input 
-                        type="file" 
-                        ref={restoreInputRef} 
-                        onChange={handleRestoreChange} 
-                        accept=".json" 
-                        className="hidden" 
-                    />
-                </div>
-
-                <div className="h-px bg-[#262626] mx-4 my-2"></div>
-
-                {/* Factory Reset */}
-                <div onClick={onReset} className="p-4 hover:bg-red-900/10 rounded-2xl cursor-pointer flex items-center gap-4 transition-colors group">
-                    <div className="bg-red-900/20 p-3 rounded-xl text-red-400 group-hover:scale-110 transition-transform">
-                        <Trash2 size={20} />
-                    </div>
-                    <div>
-                        <h4 className="font-bold text-red-400">Factory Reset</h4>
-                        <p className="text-xs text-red-500/50">Wipe all data and start over</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {/* Info */}
-        <div className="text-center text-neutral-600 text-xs py-4 space-y-2">
-            <p className="font-bold">Dinero Flow v3.5</p>
+        {/* FOOTER */}
+        <div className="text-center text-neutral-600 text-[10px] py-4">
+            <p className="font-bold">Dinero Flow v3.6</p>
             <p>Designed for C-Lo</p>
-            <div className="flex justify-center gap-4 mt-2">
-                 <a href="#" className="flex items-center gap-1 hover:text-white transition-colors"><Github size={12}/> Source</a>
-                 <a href="#" className="flex items-center gap-1 hover:text-white transition-colors"><LogOut size={12}/> Sign Out</a>
-            </div>
         </div>
     </div>
   );
