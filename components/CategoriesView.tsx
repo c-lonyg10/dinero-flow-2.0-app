@@ -131,7 +131,6 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
                 const config = getCategoryConfig(cat.name);
                 
                 // DEBT MANAGER RING DATA LOGIC
-                // We create a "Pie" where Value is the percentage, and "Remainder" is 100 - percentage
                 const pieData = [
                     { value: cat.percent },
                     { value: Math.max(0, 100 - cat.percent) }
@@ -159,13 +158,14 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
                                         data={pieData}
                                         cx="50%"
                                         cy="50%"
-                                        innerRadius={22} // Adjusted slightly for the 16x16 container
+                                        innerRadius={22}
                                         outerRadius={30}
                                         startAngle={90}
                                         endAngle={-270}
                                         paddingAngle={0}
                                         dataKey="value"
                                         stroke="none"
+                                        isAnimationActive={false}
                                     >
                                         <Cell fill={config.color} />
                                         <Cell fill="#262626" />
@@ -191,10 +191,15 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
                 <TrendingUp size={16} className="text-emerald-400"/> 3-Month Trend
             </h3>
             <div className="h-48 w-full">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" className="outline-none">
                     <BarChart data={trendData}>
                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#666' }} />
-                        <Tooltip cursor={false} contentStyle={{ backgroundColor: '#000', borderRadius: '8px', border: 'none' }} />
+                        {/* FIXED: Added wrapperStyle={{ outline: 'none' }} to kill the focus border */}
+                        <Tooltip 
+                            cursor={false} 
+                            contentStyle={{ backgroundColor: '#000', borderRadius: '8px', border: 'none' }}
+                            wrapperStyle={{ outline: 'none' }} 
+                        />
                         <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
                         <Bar dataKey="Income" fill="#10b981" radius={[4, 4, 0, 0]} />
                         <Bar dataKey="Fixed" fill="#ef4444" radius={[4, 4, 0, 0]} />
