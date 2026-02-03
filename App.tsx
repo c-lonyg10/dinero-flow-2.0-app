@@ -8,6 +8,7 @@ import TransactionsView from './components/TransactionsView';
 import SettingsView from './components/SettingsView';
 import FunView from './components/FunView';
 import CategoriesView from './components/CategoriesView';
+import YearView from './components/YearView';
 import DueBillsView from './components/DueBillsView';
 import { AppData, INITIAL_DATA, TabType, Transaction, Bill } from './types';
 import { X, Check, Trash2, AlertTriangle, ArrowRight } from 'lucide-react';
@@ -524,7 +525,13 @@ const App: React.FC = () => {
                 monthOffset={monthOffset} 
                 setMonthOffset={setMonthOffset}
                 onBack={() => setActiveTab('dashboard')} 
+                onOpenYear={() => setActiveTab('year_review' as any)} // NEW
              />
+          }
+
+          {/* NEW: Year Review View */}
+          {(activeTab as any) === 'year_review' && 
+            <YearView data={data} onBack={() => setActiveTab('categories')} />
           }
 
           {activeTab === 'transactions' && 
