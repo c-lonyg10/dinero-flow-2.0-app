@@ -11,11 +11,11 @@ interface DebtItem {
     id: number;
     name: string;
     totalAmount: number;
-    prePaid: number; // New field to handle historical payments
+    prePaid: number;
     icon: string; 
     color: string;
-    dueDay?: string; // Restored "Due Date" visual
-    nextAmt?: number; // Restored "Next Amount" visual
+    dueDay?: string;
+    nextAmt?: number;
 }
 
 const DebtView: React.FC<DebtViewProps> = ({ data }) => {
@@ -25,11 +25,12 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
 
     // Load Debts
     useEffect(() => {
-        const saved = localStorage.getItem('moneyflow_debts_v2'); // bumped version to v2 to force refresh
+        // CHANGED TO v3 TO FORCE A RESET
+        const saved = localStorage.getItem('moneyflow_debts_v3'); 
         if (saved) {
             setDebts(JSON.parse(saved));
         } else {
-            // RESTORED YOUR ORIGINAL DATA HERE
+            // FORCE RELOAD OF ORIGINAL DATA
             setDebts([
                 { 
                     id: 1, 
@@ -45,7 +46,7 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
                     id: 2, 
                     name: "Wells Fargo", 
                     totalAmount: 8022.57, 
-                    prePaid: 7006.57, // Calculated from your old "Bal: 1016"
+                    prePaid: 7006.57, 
                     icon: 'car', 
                     color: 'indigo',
                     dueDay: '11th',
@@ -67,25 +68,21 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
 
     // Save Debts
     useEffect(() => {
-        localStorage.setItem('moneyflow_debts_v2', JSON.stringify(debts));
+        // CHANGED TO v3 TO MATCH
+        localStorage.setItem('moneyflow_debts_v3', JSON.stringify(debts));
     }, [debts]);
 
-    // --- THE BRAIN: Calculate Progress ---
     const getDebtStats = (debt: DebtItem) => {
-        // 1. Find payments made inside the app (Transactions)
         const appPayments = data.transactions ? data.transactions.filter(t => 
             t.c === 'Debt' && 
             t.t.toLowerCase().includes(debt.name.toLowerCase())
         ) : [];
 
         const paymentsTotal = appPayments.reduce((sum, t) => sum + Math.abs(t.a), 0);
-        
-        // 2. Combine with "Pre-Paid" history
         const totalPaid = (debt.prePaid || 0) + paymentsTotal;
         const remaining = Math.max(0, debt.totalAmount - totalPaid);
         const progress = Math.min(100, (totalPaid / debt.totalAmount) * 100);
         
-        // Check if paid THIS month
         const currentMonth = new Date();
         const paidThisMonth = appPayments
             .filter(t => {
@@ -121,7 +118,6 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
         }
     };
 
-    // Helper for colors
     const getColors = (color: string) => {
         const map: any = {
             blue: { text: 'text-blue-400', bg: 'bg-blue-500', chart: '#3b82f6' },
