@@ -415,16 +415,18 @@ const App: React.FC = () => {
           {(activeTab as any) === 'bills_today' && <DueBillsView data={data} mode="today" onBack={() => setActiveTab('dashboard')} />}
           {(activeTab as any) === 'bills_week' && <DueBillsView data={data} mode="week" onBack={() => setActiveTab('dashboard')} />}
 
-          {activeTab === 'calendar' && 
+         {activeTab === 'calendar' && 
             <CalendarView 
                 data={data} 
                 monthOffset={monthOffset}
                 setMonthOffset={setMonthOffset}
-                onOpenBillModal={(b) => { setEditingBill(b || null); setIsBillModalOpen(true); }} 
+                onOpenBillModal={(b) => { setEditingBill(b || null); setIsBillModalOpen(true); }}
+                // Added these two lines:
+                onUpdateRent={handleUpdateRent}
+                onTogglePaid={handleToggleBillId}
             />
           }
           
-          {activeTab === 'rent' && <RentView data={data} onUpdateRent={handleUpdateRent} onTogglePaid={handleToggleBillId} monthOffset={monthOffset} />}
           
           {activeTab === 'spending' && 
             <SpendingView 

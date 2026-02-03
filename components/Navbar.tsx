@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Calendar, Home, Utensils, Sword, Receipt, PieChart } from 'lucide-react';
+import { LayoutDashboard, Calendar, Utensils, Sword, Receipt, PieChart } from 'lucide-react';
 import { TabType } from '../types';
 
 interface NavbarProps {
@@ -8,13 +8,11 @@ interface NavbarProps {
 }
 
 const Navbar: React.FC<NavbarProps> = ({ activeTab, onSwitch }) => {
-  // changed id type to 'any' temporarily so it works before we update types.ts
   const navItems: { id: any; icon: React.ReactNode }[] = [
     { id: 'dashboard', icon: <LayoutDashboard size={24} /> },
-    { id: 'calendar', icon: <Calendar size={24} /> },
-    { id: 'rent', icon: <Home size={24} /> },
-    { id: 'spending', icon: <Utensils size={24} /> }, // Food
-    { id: 'categories', icon: <PieChart size={24} /> }, // NEW: Categories
+    { id: 'calendar', icon: <Calendar size={24} /> }, // Rent lives here now
+    { id: 'spending', icon: <Utensils size={24} /> },
+    { id: 'categories', icon: <PieChart size={24} /> },
     { id: 'debt', icon: <Sword size={24} /> },
     { id: 'transactions', icon: <Receipt size={24} /> },
   ];
