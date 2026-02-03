@@ -1,7 +1,7 @@
 import React from 'react';
 import { AppData } from '../types';
 import { ArrowLeft, TrendingUp, TrendingDown, Music, Trophy, Calendar, DollarSign } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface YearViewProps {
   data: AppData;
@@ -9,7 +9,7 @@ interface YearViewProps {
 }
 
 const YearView: React.FC<YearViewProps> = ({ data, onBack }) => {
-  const currentYear = new Date().getFullYear(); // 2026
+  const currentYear = new Date().getFullYear(); 
 
   // 1. FILTER FOR CURRENT YEAR
   const yearTx = data.transactions.filter(t => {
@@ -52,6 +52,12 @@ const YearView: React.FC<YearViewProps> = ({ data, onBack }) => {
 
   return (
     <div className="space-y-6 pb-24 animate-fade-in min-h-[100dvh]">
+        {/* CSS Hack to kill the white border on Touch */}
+        <style>{`
+            .recharts-wrapper { outline: none !important; }
+            *:focus { outline: none !important; }
+        `}</style>
+
         {/* Header */}
         <div className="flex items-center gap-2 pt-4 px-1">
             <button onClick={onBack} className="p-2 bg-neutral-800 rounded-full text-white hover:bg-neutral-700">
@@ -81,13 +87,14 @@ const YearView: React.FC<YearViewProps> = ({ data, onBack }) => {
         <div className="bg-[#171717] border border-[#262626] p-4 rounded-3xl shadow-lg">
             <h3 className="text-sm font-bold text-white mb-4 pl-2">Monthly Flow</h3>
             <div className="h-48 w-full">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" className="outline-none">
                     <BarChart data={monthlyData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#525252' }} interval={0} />
                         <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#525252' }} />
                         <Tooltip 
-                            cursor={{ fill: '#262626' }}
+                            cursor={false}
                             contentStyle={{ backgroundColor: '#171717', border: '1px solid #333', borderRadius: '12px', fontSize: '12px' }}
+                            wrapperStyle={{ outline: 'none' }}
                         />
                         {/* Stacked Bars: Fixed (Red), Fun (Purple), Income (Green behind/separate) */}
                         <Bar dataKey="fixed" stackId="a" fill="#ef4444" radius={[0, 0, 4, 4]} />
