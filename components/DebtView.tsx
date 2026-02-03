@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Sword, Trophy, Plus, Trash2, X, Check, Save, TrendingDown } from 'lucide-react';
-import { AppData, Transaction } from '../types';
+import { Sword, Trophy, Plus, Trash2, X, Check, Save, TrendingDown, Handshake, Car, GraduationCap } from 'lucide-react';
+import { AppData } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
 interface DebtViewProps {
-    data: AppData; // Needs access to transaction history
+    data: AppData;
 }
 
 interface DebtItem {
     id: number;
     name: string;
-    totalAmount: number; // The starting debt amount
-    icon: string; // 'car', 'school', 'card', 'home'
+    totalAmount: number;
+    prePaid: number; // New field to handle historical payments
+    icon: string; 
     color: string;
+    dueDay?: string; // Restored "Due Date" visual
+    nextAmt?: number; // Restored "Next Amount" visual
 }
 
 const DebtView: React.FC<DebtViewProps> = ({ data }) => {
@@ -20,39 +23,71 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [newDebt, setNewDebt] = useState<Partial<DebtItem>>({ color: 'blue' });
 
-    // Load Debts from Local Storage (Separate from main AppData to keep it safe)
+    // Load Debts
     useEffect(() => {
-        const saved = localStorage.getItem('moneyflow_debts_v1');
+        const saved = localStorage.getItem('moneyflow_debts_v2'); // bumped version to v2 to force refresh
         if (saved) {
             setDebts(JSON.parse(saved));
         } else {
-            // Default Starter Debt (Example)
+            // RESTORED YOUR ORIGINAL DATA HERE
             setDebts([
-                { id: 1, name: "Car Loan", totalAmount: 15000, icon: 'car', color: 'indigo' }
+                { 
+                    id: 1, 
+                    name: "Tio Frank", 
+                    totalAmount: 7875, 
+                    prePaid: 4437, 
+                    icon: 'handshake', 
+                    color: 'blue',
+                    dueDay: '15th',
+                    nextAmt: 787.50
+                },
+                { 
+                    id: 2, 
+                    name: "Wells Fargo", 
+                    totalAmount: 8022.57, 
+                    prePaid: 7006.57, // Calculated from your old "Bal: 1016"
+                    icon: 'car', 
+                    color: 'indigo',
+                    dueDay: '11th',
+                    nextAmt: 169.32
+                },
+                { 
+                    id: 3, 
+                    name: "Student Loan", 
+                    totalAmount: 8500, 
+                    prePaid: 2000, 
+                    icon: 'school', 
+                    color: 'purple',
+                    dueDay: '5th',
+                    nextAmt: 153.83
+                }
             ]);
         }
     }, []);
 
     // Save Debts
     useEffect(() => {
-        localStorage.setItem('moneyflow_debts_v1', JSON.stringify(debts));
+        localStorage.setItem('moneyflow_debts_v2', JSON.stringify(debts));
     }, [debts]);
 
-    // --- THE BRAIN: Calculate Progress based on Transactions ---
+    // --- THE BRAIN: Calculate Progress ---
     const getDebtStats = (debt: DebtItem) => {
-        // Find ALL payments ever made to this debt (matching name & category)
-        const allPayments = data.transactions.filter(t => 
+        // 1. Find payments made inside the app (Transactions)
+        const appPayments = data.transactions ? data.transactions.filter(t => 
             t.c === 'Debt' && 
             t.t.toLowerCase().includes(debt.name.toLowerCase())
-        );
+        ) : [];
 
-        const totalPaid = allPayments.reduce((sum, t) => sum + Math.abs(t.a), 0);
+        const paymentsTotal = appPayments.reduce((sum, t) => sum + Math.abs(t.a), 0);
+        
+        // 2. Combine with "Pre-Paid" history
+        const totalPaid = (debt.prePaid || 0) + paymentsTotal;
         const remaining = Math.max(0, debt.totalAmount - totalPaid);
         const progress = Math.min(100, (totalPaid / debt.totalAmount) * 100);
         
         // Check if paid THIS month
         const currentMonth = new Date();
-        const paidThisMonth = allPayments
+        const paidThisMonth = appPayments
             .filter(t => {
                 const d = new Date(t.d);
                 return d.getMonth() === currentMonth.getMonth() && 
@@ -69,8 +104,11 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
             id: Date.now(),
             name: newDebt.name,
             totalAmount: Number(newDebt.totalAmount),
+            prePaid: Number(newDebt.prePaid || 0),
             icon: newDebt.icon || 'card',
-            color: newDebt.color || 'blue'
+            color: newDebt.color || 'blue',
+            dueDay: newDebt.dueDay || '1st',
+            nextAmt: Number(newDebt.nextAmt || 0)
         };
         setDebts([...debts, item]);
         setIsModalOpen(false);
@@ -95,6 +133,13 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
         return map[color] || map.blue;
     };
 
+    const getIcon = (icon: string) => {
+        if (icon === 'handshake') return <Handshake size={24} />;
+        if (icon === 'car') return <Car size={24} />;
+        if (icon === 'school') return <GraduationCap size={24} />;
+        return <Sword size={24} />;
+    };
+
     return (
         <div className="space-y-6 pb-24 animate-fade-in min-h-[100dvh]">
             <div className="flex justify-between items-center pt-4 px-1">
@@ -112,7 +157,6 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
                     const colors = getColors(d.color);
                     const pieData = [{ value: stats.totalPaid }, { value: stats.remaining }];
 
-                    // --- PLATINUM TROPHY VIEW (CONQUERED) ---
                     if (stats.isConquered) {
                         return (
                             <div key={d.id} className="relative overflow-hidden p-6 rounded-2xl border border-yellow-500/50 bg-gradient-to-br from-yellow-900/40 to-black shadow-[0_0_30px_rgba(234,179,8,0.2)] group">
@@ -125,18 +169,12 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
                                     </div>
                                     <h3 className="text-2xl font-black text-white tracking-tight uppercase">Debt Conquered</h3>
                                     <p className="text-sm font-bold text-yellow-500 uppercase tracking-widest">{d.name}</p>
-                                    <p className="text-xs text-neutral-400">You paid off ${d.totalAmount.toLocaleString()}!</p>
-                                    <button onClick={() => handleDelete(d.id)} className="mt-4 text-[10px] text-neutral-600 hover:text-red-500 underline">
-                                        Remove from history
-                                    </button>
+                                    <button onClick={() => handleDelete(d.id)} className="mt-4 text-[10px] text-neutral-600 hover:text-red-500 underline">Remove</button>
                                 </div>
-                                {/* Shine Effect */}
-                                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-shine" />
                             </div>
                         );
                     }
 
-                    // --- ACTIVE BATTLE VIEW ---
                     return (
                         <div key={d.id} className="p-5 bg-neutral-900 border border-neutral-800 rounded-2xl shadow-md relative overflow-hidden">
                              <div className="absolute top-2 right-2">
@@ -144,9 +182,14 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
                              </div>
 
                             <div className="flex justify-between items-start mb-4">
-                                <div>
-                                    <h3 className="text-lg font-bold text-white">{d.name}</h3>
-                                    <p className="text-xs text-neutral-400 uppercase font-bold tracking-wide">Target: ${d.totalAmount.toLocaleString()}</p>
+                                <div className="flex gap-3">
+                                    <div className={`p-2 rounded-lg bg-neutral-950 border border-neutral-800 h-fit text-${d.color}-500`}>
+                                        {getIcon(d.icon)}
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-white">{d.name}</h3>
+                                        <p className="text-xs text-neutral-400 uppercase font-bold tracking-wide">Due: {d.dueDay}</p>
+                                    </div>
                                 </div>
                                 <div className="text-right">
                                     <p className={`text-[10px] font-bold ${colors.text} uppercase`}>Remaining</p>
@@ -154,7 +197,6 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
                                 </div>
                             </div>
 
-                            {/* Progress Bar */}
                             <div className="mb-4">
                                 <div className="flex justify-between text-xs font-bold mb-1">
                                     <span className="text-neutral-500">Progress</span>
@@ -165,7 +207,6 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
                                 </div>
                             </div>
 
-                            {/* Stats Grid */}
                             <div className="grid grid-cols-2 gap-3 items-center">
                                 <div className={`p-3 rounded-xl border ${stats.paidThisMonth > 0 ? 'bg-emerald-900/20 border-emerald-900/50' : 'bg-neutral-950 border-neutral-800'}`}>
                                     <p className="text-[10px] text-neutral-500 font-bold uppercase mb-1">Paid This Month</p>
@@ -177,7 +218,6 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
                                     </div>
                                 </div>
                                 
-                                {/* Donut Chart Mini */}
                                 <div className="h-14 w-full relative">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <PieChart>
@@ -199,23 +239,13 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
                                         </PieChart>
                                     </ResponsiveContainer>
                                     <div className="absolute inset-0 flex items-center justify-center">
-                                        <Sword size={12} className={colors.text} />
+                                        <span className={`text-[10px] font-bold ${colors.text}`}>{Math.round(stats.progress)}%</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     );
                 })}
-
-                {debts.length === 0 && (
-                    <div className="text-center py-12 px-4">
-                        <div className="bg-neutral-900/50 rounded-full p-6 inline-block mb-4">
-                            <Sword size={48} className="text-neutral-700" />
-                        </div>
-                        <h3 className="text-white font-bold mb-2">No Enemies Found</h3>
-                        <p className="text-neutral-500 text-sm">Add a debt to start tracking your battle against interest rates.</p>
-                    </div>
-                )}
             </div>
 
             {/* ADD DEBT MODAL */}
@@ -229,22 +259,20 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
                         
                         <div className="space-y-3">
                             <div>
-                                <label className="text-xs font-bold text-neutral-500 uppercase ml-1">Debt Name (Must match Transactions)</label>
-                                <input 
-                                    type="text" 
-                                    placeholder="e.g., Wells Fargo, Student Loan"
-                                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500"
-                                    onChange={e => setNewDebt({...newDebt, name: e.target.value})}
-                                />
+                                <label className="text-xs font-bold text-neutral-500 uppercase ml-1">Debt Name</label>
+                                <input type="text" placeholder="e.g., Wells Fargo" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white" onChange={e => setNewDebt({...newDebt, name: e.target.value})} />
                             </div>
                             <div>
-                                <label className="text-xs font-bold text-neutral-500 uppercase ml-1">Total Starting Amount</label>
-                                <input 
-                                    type="number" 
-                                    placeholder="e.g., 15000"
-                                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500"
-                                    onChange={e => setNewDebt({...newDebt, totalAmount: Number(e.target.value)})}
-                                />
+                                <label className="text-xs font-bold text-neutral-500 uppercase ml-1">Total Debt Amount</label>
+                                <input type="number" placeholder="15000" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white" onChange={e => setNewDebt({...newDebt, totalAmount: Number(e.target.value)})} />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-neutral-500 uppercase ml-1">Already Paid (History)</label>
+                                <input type="number" placeholder="0" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white" onChange={e => setNewDebt({...newDebt, prePaid: Number(e.target.value)})} />
+                            </div>
+                             <div>
+                                <label className="text-xs font-bold text-neutral-500 uppercase ml-1">Due Date</label>
+                                <input type="text" placeholder="e.g. 15th" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white" onChange={e => setNewDebt({...newDebt, dueDay: e.target.value})} />
                             </div>
                             <div>
                                 <label className="text-xs font-bold text-neutral-500 uppercase ml-1">Color Theme</label>
