@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { AppData } from '../types';
 import { ArrowLeft, TrendingUp, ChevronDown, Music, Home, Zap, Coffee, ShoppingBag, Gamepad2, Fuel, Shirt, Gift, Smile, DollarSign, CreditCard } from 'lucide-react';
-import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
 
 interface CategoriesViewProps {
   data: AppData;
@@ -18,7 +18,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
   const targetMonth = targetDate.getMonth();
   const targetYear = targetDate.getFullYear();
 
-  // Generate Dropdown Options (Matching the rest of the app)
+  // Generate Dropdown Options
   const monthOptions = [-1, 0, 1, 2, 3].map(i => {
       const d = new Date();
       d.setMonth(d.getMonth() - i);
@@ -111,7 +111,6 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
                 <h2 className="text-2xl font-bold text-white">Categories</h2>
             </div>
 
-            {/* Dropdown Menu (Matches Transactions Page) */}
             <div className="relative">
                 <select 
                     value={monthOffset}
@@ -130,9 +129,13 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
         <div className="grid grid-cols-1 gap-3">
             {categories.map((cat) => {
                 const config = getCategoryConfig(cat.name);
-                const radius = 28;
-                const circumference = 2 * Math.PI * radius;
-                const strokeDashoffset = circumference - (Math.min(cat.percent, 100) / 100) * circumference;
+                
+                // DEBT MANAGER RING DATA LOGIC
+                // We create a "Pie" where Value is the percentage, and "Remainder" is 100 - percentage
+                const pieData = [
+                    { value: cat.percent },
+                    { value: Math.max(0, 100 - cat.percent) }
+                ];
 
                 return (
                     <div key={cat.name} className="bg-[#171717] border border-[#262626] p-5 rounded-3xl flex items-center justify-between shadow-lg relative overflow-hidden h-[100px]">
@@ -148,21 +151,29 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
                              <p className="text-2xl font-black text-white pl-1">${cat.value.toFixed(0)}</p>
                         </div>
 
-                        {/* RIGHT: The Ring */}
+                        {/* RIGHT: The Ring (Recharts Implementation from Debt Manager) */}
                         <div className="relative w-16 h-16 shrink-0">
-                            <svg className="w-full h-full -rotate-90" viewBox="0 0 80 80">
-                                <circle cx="40" cy="40" r={radius} stroke="#262626" strokeWidth="6" fill="none" />
-                                <circle 
-                                    cx="40" cy="40" r={radius} 
-                                    stroke={config.color} 
-                                    strokeWidth="6" 
-                                    fill="none" 
-                                    strokeDasharray={circumference} 
-                                    strokeDashoffset={strokeDashoffset}
-                                    strokeLinecap="round"
-                                />
-                            </svg>
-                            <div className="absolute inset-0 flex items-center justify-center">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={pieData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={22} // Adjusted slightly for the 16x16 container
+                                        outerRadius={30}
+                                        startAngle={90}
+                                        endAngle={-270}
+                                        paddingAngle={0}
+                                        dataKey="value"
+                                        stroke="none"
+                                    >
+                                        <Cell fill={config.color} />
+                                        <Cell fill="#262626" />
+                                    </Pie>
+                                </PieChart>
+                            </ResponsiveContainer>
+                            {/* Centered Percentage */}
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                 <span className="text-[10px] font-bold text-white">{cat.percent.toFixed(0)}%</span>
                             </div>
                         </div>
