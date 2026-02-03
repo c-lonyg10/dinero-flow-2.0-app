@@ -89,15 +89,26 @@ const TransactionsView: React.FC<TransactionsViewProps> = ({ data, onOpenTxModal
 
   const people = Object.values(peopleMap).sort((a, b) => (b.in + b.out) - (a.in + a.out));
 
-  // Helper for Category Badges
+  // --- UPDATED COLOR LOGIC ---
   const getCategoryBadgeClass = (cat: string) => {
       switch(cat) {
+          // Legacy Categories
           case 'Groceries': return 'bg-emerald-900/30 text-emerald-400 border-emerald-500/30';
           case 'Dining': return 'bg-orange-900/30 text-orange-400 border-orange-500/30';
           case 'Rent': return 'bg-cyan-900/30 text-cyan-400 border-cyan-500/30';
           case 'Bills': return 'bg-pink-900/30 text-pink-400 border-pink-500/30';
           case 'Debt': return 'bg-red-900/30 text-red-400 border-red-500/30';
           case 'Income': return 'bg-purple-900/30 text-purple-400 border-purple-500/30';
+          
+          // NEW Categories (Assigned unique colors)
+          case 'Music Gear': return 'bg-blue-900/30 text-blue-400 border-blue-500/30'; // Electric Blue
+          case 'Electronics/Games': return 'bg-violet-900/30 text-violet-400 border-violet-500/30'; // Deep Violet
+          case 'Gas': return 'bg-yellow-900/30 text-yellow-400 border-yellow-500/30'; // Fuel Yellow
+          case 'Clothes': return 'bg-fuchsia-900/30 text-fuchsia-400 border-fuchsia-500/30'; // Fashion Fuchsia
+          case 'Gifts': return 'bg-rose-900/30 text-rose-400 border-rose-500/30'; // Rose Red
+          case 'For Fun': return 'bg-lime-900/30 text-lime-400 border-lime-500/30'; // Lime Green
+          
+          // Default
           default: return 'bg-neutral-800 text-neutral-400 border-neutral-700';
       }
   };
@@ -105,12 +116,9 @@ const TransactionsView: React.FC<TransactionsViewProps> = ({ data, onOpenTxModal
   // --- RENDER DETAIL VIEW (PERSON) ---
   if (selectedPerson) {
       const personData = peopleMap[selectedPerson];
-      
-      // Fallback if data is missing (shouldn't happen)
       if (!personData) return null;
 
       return (
-          // CSS FIX: h-[100dvh] + flex col
           <div className="space-y-6 pb-6 animate-fade-in h-[100dvh] flex flex-col box-border">
               <div className="shrink-0 pt-4 px-1 mb-4">
                   <div className="flex items-center gap-2 mb-4">
@@ -139,7 +147,6 @@ const TransactionsView: React.FC<TransactionsViewProps> = ({ data, onOpenTxModal
                   </div>
               </div>
 
-              {/* CSS FIX: flex-1 + min-h-0 */}
               <div className="flex-1 bg-[#171717] rounded-t-3xl overflow-hidden border-t border-l border-r border-[#262626] relative shadow-xl min-h-0 mx-1">
                   <div className="h-full overflow-y-auto no-scrollbar pb-20">
                         <table className="min-w-full text-xs text-left text-neutral-400">
