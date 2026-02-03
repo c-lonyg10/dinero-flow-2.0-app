@@ -108,28 +108,45 @@ const App: React.FC = () => {
       downloadAnchorNode.remove();
   };
 
-  // --- RESTORE FUNCTION ---
+  // --- ROBUST RESTORE FUNCTION ---
   const handleRestoreData = (file: File) => {
+      // Safety check for file type
+      if (!file.name.endsWith('.json') && file.type !== 'application/json') {
+          if (!confirm(`The file "${file.name}" doesn't look like a JSON file. Try to restore anyway?`)) return;
+      }
+
       const reader = new FileReader();
+      
       reader.onload = (e) => {
           try {
               const text = e.target?.result as string;
+              if (!text) throw new Error("File is empty");
+              
               const parsed = JSON.parse(text);
 
+              // Check if it's our new full backup format or legacy
               if (parsed.appData) {
+                  // Full Backup
                   setData(parsed.appData);
                   if (parsed.debtData) {
                       localStorage.setItem('moneyflow_debts_v3', JSON.stringify(parsed.debtData));
                   }
-                  alert("Restore Successful! Please refresh the app.");
+                  alert("✅ Restore Successful! All data loaded. \n\nPlease refresh the app.");
               } else {
+                  // Legacy Backup
                   setData(parsed);
-                  alert("Legacy Restore Successful!");
+                  alert("✅ Legacy Restore Successful!");
               }
-          } catch (err) {
-              alert("Failed to restore file. Is it a valid JSON?");
+          } catch (err: any) {
+              console.error(err);
+              alert("❌ Restore Failed: " + err.message);
           }
       };
+      
+      reader.onerror = () => {
+          alert("❌ Error reading file. Please try again.");
+      };
+
       reader.readAsText(file);
   };
 

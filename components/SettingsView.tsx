@@ -9,7 +9,7 @@ interface SettingsViewProps {
   onImport: (file: File) => void;
   onExport: () => void;
   onRestore: (file: File) => void;
-  onArchive: () => void; // Added the missing prop
+  onArchive: () => void;
 }
 
 const SettingsView: React.FC<SettingsViewProps> = ({ 
@@ -27,12 +27,17 @@ const SettingsView: React.FC<SettingsViewProps> = ({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       onImport(e.target.files[0]);
+      e.target.value = ''; // Reset so you can select the same file again
     }
   };
 
   const handleRestoreChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
-          onRestore(e.target.files[0]);
+          const file = e.target.files[0];
+          // Debug Alert to prove the button works
+          alert(`File Selected: ${file.name} (${file.size} bytes). Starting restore...`);
+          onRestore(file);
+          e.target.value = ''; // Reset input
       }
   };
 
@@ -79,7 +84,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                     <RefreshCw size={18} /> Restore
                 </button>
             </div>
-            <input type="file" ref={restoreInputRef} onChange={handleRestoreChange} accept=".json" className="hidden" />
+            {/* CHANGED accept to "*" to fix Android grey-out issue */}
+            <input type="file" ref={restoreInputRef} onChange={handleRestoreChange} accept="*" className="hidden" />
         </div>
 
         {/* 3. ARCHIVE CARD (PURPLE) */}
@@ -135,7 +141,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
 
         {/* FOOTER */}
         <div className="text-center text-neutral-600 text-[10px] py-4">
-            <p className="font-bold">Dinero Flow v3.6</p>
+            <p className="font-bold">Dinero Flow v3.7</p>
             <p>Designed for C-Lo</p>
         </div>
     </div>
