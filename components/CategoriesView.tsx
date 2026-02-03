@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { AppData } from '../types';
-import { ArrowLeft, ArrowRight, TrendingUp, Music, Home, Zap, Coffee, ShoppingBag, Gamepad2, Fuel, Shirt, Gift, Smile, DollarSign, CreditCard } from 'lucide-react';
+import { ArrowLeft, TrendingUp, ChevronDown, Music, Home, Zap, Coffee, ShoppingBag, Gamepad2, Fuel, Shirt, Gift, Smile, DollarSign, CreditCard } from 'lucide-react';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface CategoriesViewProps {
@@ -17,8 +17,18 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
   targetDate.setMonth(targetDate.getMonth() - monthOffset);
   const targetMonth = targetDate.getMonth();
   const targetYear = targetDate.getFullYear();
-  
-  const monthLabel = targetDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  // Generate Dropdown Options (Matching the rest of the app)
+  const monthOptions = [-1, 0, 1, 2, 3].map(i => {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      return {
+          value: i,
+          label: i === 0 ? 'Current Month' :
+                 i === -1 ? 'Next Month' :
+                 d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+      };
+  });
 
   // Filter transactions
   const monthTx = data.transactions.filter(t => {
@@ -72,43 +82,52 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
       };
   });
 
-  // --- CONFIGURATION: Colors & Icons ---
+  // Colors & Icons
   const getCategoryConfig = (cat: string) => {
       switch(cat) {
-          case 'Rent': return { color: '#06b6d4', icon: <Home size={14} /> }; // Cyan
-          case 'Bills': return { color: '#ec4899', icon: <Zap size={14} /> }; // Pink
-          case 'Debt': return { color: '#ef4444', icon: <CreditCard size={14} /> }; // Red
-          case 'Dining': return { color: '#f97316', icon: <Coffee size={14} /> }; // Orange
-          case 'Groceries': return { color: '#10b981', icon: <ShoppingBag size={14} /> }; // Emerald
-          case 'Music Gear': return { color: '#3b82f6', icon: <Music size={14} /> }; // Blue
-          case 'Electronics/Games': return { color: '#8b5cf6', icon: <Gamepad2 size={14} /> }; // Violet
-          case 'Gas': return { color: '#eab308', icon: <Fuel size={14} /> }; // Yellow
-          case 'Clothes': return { color: '#d946ef', icon: <Shirt size={14} /> }; // Fuchsia
-          case 'Gifts': return { color: '#f43f5e', icon: <Gift size={14} /> }; // Rose
-          case 'For Fun': return { color: '#84cc16', icon: <Smile size={14} /> }; // Lime
-          default: return { color: '#a3a3a3', icon: <DollarSign size={14} /> };
+          case 'Rent': return { color: '#06b6d4', icon: <Home size={18} /> }; // Cyan
+          case 'Bills': return { color: '#ec4899', icon: <Zap size={18} /> }; // Pink
+          case 'Debt': return { color: '#ef4444', icon: <CreditCard size={18} /> }; // Red
+          case 'Dining': return { color: '#f97316', icon: <Coffee size={18} /> }; // Orange
+          case 'Groceries': return { color: '#10b981', icon: <ShoppingBag size={18} /> }; // Emerald
+          case 'Music Gear': return { color: '#3b82f6', icon: <Music size={18} /> }; // Blue
+          case 'Electronics/Games': return { color: '#8b5cf6', icon: <Gamepad2 size={18} /> }; // Violet
+          case 'Gas': return { color: '#eab308', icon: <Fuel size={18} /> }; // Yellow
+          case 'Clothes': return { color: '#d946ef', icon: <Shirt size={18} /> }; // Fuchsia
+          case 'Gifts': return { color: '#f43f5e', icon: <Gift size={18} /> }; // Rose
+          case 'For Fun': return { color: '#84cc16', icon: <Smile size={18} /> }; // Lime
+          default: return { color: '#a3a3a3', icon: <DollarSign size={18} /> };
       }
   };
 
   return (
     <div className="space-y-6 pb-24 animate-fade-in min-h-[100dvh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center gap-2 pt-4 px-1 shrink-0">
-            <button onClick={onBack} className="p-2 bg-neutral-800 rounded-full text-white hover:bg-neutral-700">
-                <ArrowLeft size={20} />
-            </button>
-            <h2 className="text-2xl font-bold text-white">Categories</h2>
+        {/* Header with Dropdown */}
+        <div className="flex justify-between items-center pt-4 px-1 shrink-0">
+            <div className="flex items-center gap-2">
+                <button onClick={onBack} className="p-2 bg-neutral-800 rounded-full text-white hover:bg-neutral-700">
+                    <ArrowLeft size={20} />
+                </button>
+                <h2 className="text-2xl font-bold text-white">Categories</h2>
+            </div>
+
+            {/* Dropdown Menu (Matches Transactions Page) */}
+            <div className="relative">
+                <select 
+                    value={monthOffset}
+                    onChange={(e) => setMonthOffset(Number(e.target.value))}
+                    className="appearance-none bg-neutral-900 text-neutral-400 pl-3 pr-8 py-2 rounded-full border border-neutral-800 text-xs font-bold outline-none focus:border-neutral-600 cursor-pointer hover:bg-neutral-800 transition-colors"
+                >
+                    {monthOptions.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                </select>
+                <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
+            </div>
         </div>
 
-        {/* Month Selector */}
-        <div className="shrink-0 flex items-center justify-between bg-[#171717] p-2 rounded-2xl border border-[#262626]">
-            <button onClick={() => setMonthOffset(monthOffset + 1)} className="p-2 text-neutral-400 hover:text-white"><ArrowLeft size={18}/></button>
-            <span className="font-bold text-sm text-white">{monthLabel}</span>
-            <button onClick={() => setMonthOffset(monthOffset - 1)} className="p-2 text-neutral-400 hover:text-white"><ArrowRight size={18}/></button>
-        </div>
-
-        {/* RINGS GRID - THE ORIGINAL LAYOUT */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* 1 COLUMN WIDE LIST (Rectangular Cards) */}
+        <div className="grid grid-cols-1 gap-3">
             {categories.map((cat) => {
                 const config = getCategoryConfig(cat.name);
                 const radius = 28;
@@ -116,46 +135,42 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
                 const strokeDashoffset = circumference - (Math.min(cat.percent, 100) / 100) * circumference;
 
                 return (
-                    <div key={cat.name} className="bg-[#171717] border border-[#262626] p-4 rounded-2xl flex flex-col justify-between shadow-lg relative overflow-hidden min-h-[140px]">
+                    <div key={cat.name} className="bg-[#171717] border border-[#262626] p-5 rounded-3xl flex items-center justify-between shadow-lg relative overflow-hidden h-[100px]">
                         
-                        {/* Header: Icon + Name */}
-                        <div className="flex items-center gap-2 mb-2">
-                             <div style={{ color: config.color, backgroundColor: `${config.color}20` }} className="p-1.5 rounded-lg">
-                                 {config.icon}
+                        {/* LEFT: Info */}
+                        <div className="flex flex-col justify-center gap-1">
+                             <div className="flex items-center gap-2 mb-1">
+                                 <div style={{ color: config.color, backgroundColor: `${config.color}20` }} className="p-1.5 rounded-lg">
+                                     {config.icon}
+                                 </div>
+                                 <h4 className="text-sm font-bold text-neutral-300 uppercase tracking-wide">{cat.name}</h4>
                              </div>
-                             <h4 className="text-[10px] font-bold text-neutral-300 uppercase truncate leading-tight w-full">{cat.name}</h4>
+                             <p className="text-2xl font-black text-white pl-1">${cat.value.toFixed(0)}</p>
                         </div>
 
-                        {/* Centered Ring */}
-                        <div className="flex-1 flex flex-col items-center justify-center relative">
-                            <div className="relative w-16 h-16">
-                                <svg className="w-full h-full -rotate-90" viewBox="0 0 80 80">
-                                    <circle cx="40" cy="40" r={radius} stroke="#262626" strokeWidth="6" fill="none" />
-                                    <circle 
-                                        cx="40" cy="40" r={radius} 
-                                        stroke={config.color} 
-                                        strokeWidth="6" 
-                                        fill="none" 
-                                        strokeDasharray={circumference} 
-                                        strokeDashoffset={strokeDashoffset}
-                                        strokeLinecap="round"
-                                    />
-                                </svg>
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <span className="text-[10px] font-bold text-white">{cat.percent.toFixed(0)}%</span>
-                                </div>
+                        {/* RIGHT: The Ring */}
+                        <div className="relative w-16 h-16 shrink-0">
+                            <svg className="w-full h-full -rotate-90" viewBox="0 0 80 80">
+                                <circle cx="40" cy="40" r={radius} stroke="#262626" strokeWidth="6" fill="none" />
+                                <circle 
+                                    cx="40" cy="40" r={radius} 
+                                    stroke={config.color} 
+                                    strokeWidth="6" 
+                                    fill="none" 
+                                    strokeDasharray={circumference} 
+                                    strokeDashoffset={strokeDashoffset}
+                                    strokeLinecap="round"
+                                />
+                            </svg>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <span className="text-[10px] font-bold text-white">{cat.percent.toFixed(0)}%</span>
                             </div>
-                        </div>
-                        
-                        {/* Bottom: Amount */}
-                        <div className="text-center mt-2">
-                            <p className="text-lg font-black text-white">${cat.value.toFixed(0)}</p>
                         </div>
                     </div>
                 );
             })}
              {categories.length === 0 && (
-                <div className="col-span-2 py-8 text-center text-neutral-500 text-xs">No spending this month</div>
+                <div className="py-8 text-center text-neutral-500 text-xs">No spending this month</div>
             )}
         </div>
 
@@ -185,7 +200,6 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
                 className="w-full py-4 bg-gradient-to-r from-yellow-600 to-yellow-800 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-yellow-900/20 active:scale-95 transition-transform"
             >
                 <span className="text-white font-black uppercase tracking-wider text-sm">View 2026 Year in Review</span>
-                <ArrowRight className="text-yellow-200" size={18} />
             </button>
         </div>
     </div>
