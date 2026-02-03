@@ -1,6 +1,6 @@
 import React from 'react';
 import { AppData } from '../types';
-import { Wallet, Briefcase, Flag, Timer, Infinity as InfinityIcon, ChevronRight, Utensils, Sword, PlusCircle, PartyPopper, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
+import { Wallet, Briefcase, Flag, Timer, Infinity as InfinityIcon, ChevronRight, Sword, PlusCircle, PartyPopper, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
 
 interface DashboardViewProps {
   data: AppData;
@@ -21,12 +21,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data, onSwitchTab, onOpen
     return d.getMonth() === currentMonth.getMonth() && d.getFullYear() === currentMonth.getFullYear();
   });
 
-  // --- NEW MODULE: CASH FLOW LOGIC ---
+  // Cash Flow Logic
   const flowIncome = monthTx.filter(t => t.a > 0).reduce((s, t) => s + t.a, 0);
-  // Fixed Typo: Defined as 'flowExpense' (singular)
   const flowExpense = monthTx.filter(t => t.a < 0).reduce((s, t) => s + Math.abs(t.a), 0);
   const flowNet = flowIncome - flowExpense;
-  // -----------------------------------
 
   // Specific Income Stats
   const gigIncome = monthTx
@@ -53,8 +51,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data, onSwitchTab, onOpen
   const groceries = monthTx.filter(t => t.c === "Groceries").reduce((s, t) => s + Math.abs(t.a), 0);
   const foodTotal = dining + groceries;
 
-  // Fun Spending
-  const funTotal = monthTx.filter(t => t.c === "For Fun").reduce((s, t) => s + Math.abs(t.a), 0);
+  // --- UPDATED FUN TOTAL LOGIC ---
+  // Calculates total of ALL discretionary categories (Gas, Clothes, Games, etc.)
+  // by excluding fixed costs. This matches the 'CategoriesView' total.
+  const funTotal = monthTx.filter(t => 
+    t.a < 0 && 
+    !['Rent', 'Bills', 'Debt', 'Income', 'Other'].includes(t.c)
+  ).reduce((s, t) => s + Math.abs(t.a), 0);
+  // -------------------------------
 
   // Debt Countdown
   const freedomDate = new Date("2026-05-01");
@@ -78,7 +82,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data, onSwitchTab, onOpen
         </div>
       </div>
 
-      {/* --- NEW MODULE: CASH FLOW CARD --- */}
+      {/* Cash Flow Card */}
       <div className="bg-[#171717] border border-[#262626] p-5 rounded-3xl shadow-md">
         <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-2">
@@ -90,7 +94,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data, onSwitchTab, onOpen
             </span>
         </div>
         <div className="flex gap-3">
-            {/* Income Side */}
             <div className="flex-1 bg-neutral-900/50 rounded-2xl p-3 border border-emerald-900/20 relative overflow-hidden">
                 <div className="flex items-center gap-1 mb-1 relative z-10">
                     <TrendingUp size={14} className="text-emerald-500" />
@@ -99,30 +102,26 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data, onSwitchTab, onOpen
                 <p className="text-lg font-black text-white relative z-10">${flowIncome.toFixed(0)}</p>
                 <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-emerald-500/10 rounded-full blur-lg"></div>
             </div>
-
-            {/* Expense Side */}
             <div className="flex-1 bg-neutral-900/50 rounded-2xl p-3 border border-red-900/20 relative overflow-hidden">
                 <div className="flex items-center gap-1 mb-1 relative z-10">
                     <TrendingDown size={14} className="text-red-500" />
                     <span className="text-[10px] text-red-500 font-bold uppercase">Out</span>
                 </div>
-                {/* FIX IS HERE: Used 'flowExpense' (singular) instead of plural */}
                 <p className="text-lg font-black text-white relative z-10">${flowExpense.toFixed(0)}</p>
                 <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-red-500/10 rounded-full blur-lg"></div>
             </div>
         </div>
       </div>
-      {/* ---------------------------------- */}
       
-      {/* Fun Bubble */}
+      {/* Categories Bubble (Formerly For Fun) */}
       <div className="flex justify-center">
         <button 
-          onClick={() => onSwitchTab('fun')}
+          onClick={() => onSwitchTab('categories')} // REDIRECTED TO NEW PAGE
           className="relative group bg-gradient-to-br from-pink-600 to-purple-700 p-1 rounded-full shadow-[0_0_20px_rgba(219,39,119,0.3)] transition-transform active:scale-95 hover:scale-105"
         >
           <div className="bg-black/20 w-32 h-32 rounded-full flex flex-col items-center justify-center backdrop-blur-sm border border-white/20">
              <PartyPopper className="text-white mb-1 drop-shadow-md" size={24} />
-             <span className="text-[10px] text-pink-200 font-bold uppercase tracking-wider">For Fun</span>
+             <span className="text-[10px] text-pink-200 font-bold uppercase tracking-wider">Categories</span>
              <span className="text-xl font-black text-white drop-shadow-md">${funTotal.toFixed(0)}</span>
           </div>
           <div className="absolute top-2 right-4 w-6 h-3 bg-white/20 rounded-full rotate-[-45deg] blur-sm"></div>

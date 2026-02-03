@@ -2,16 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import Navbar from './components/Navbar';
 import DashboardView from './components/DashboardView';
 import CalendarView from './components/CalendarView';
-import RentView from './components/RentView';
 import SpendingView from './components/SpendingView';
 import DebtView from './components/DebtView';
 import TransactionsView from './components/TransactionsView';
 import SettingsView from './components/SettingsView';
 import FunView from './components/FunView';
-import CategoriesView from './components/CategoriesView'; // NEW IMPORT
+import CategoriesView from './components/CategoriesView';
 import DueBillsView from './components/DueBillsView';
 import { AppData, INITIAL_DATA, TabType, Transaction, Bill } from './types';
-import { X, Check, Trash2, AlertTriangle, ArrowRight, RefreshCw } from 'lucide-react';
+import { X, Check, Trash2, AlertTriangle, ArrowRight } from 'lucide-react';
 
 interface ImportConflict {
   newTx: Transaction;
@@ -139,53 +138,40 @@ const App: React.FC = () => {
         let cat = 'Other';
         const lowerDesc = desc.toLowerCase();
         
-        // --- UPDATED CATEGORIZATION RULES ---
-
-        // 1. Gas
+        // --- CATEGORIZATION RULES ---
         if (['shell', 'exxon', 'mobil', 'qt', 'quik trip', 'quiktrip', 'race trac', 'racetrac', 'circle k', 'bp', 'chevron', 'texaco', 'sheetz', 'wawa', '7-eleven', 'citgo', 'murphy', 'love\'s', 'pilot'].some(k => lowerDesc.includes(k))) {
             cat = 'Gas';
         }
-        // 2. Clothes
         else if (['nike', 'adidas', 'tj maxx', 'ross', 'marshalls', 'gap', 'old navy', 'h&m', 'zara', 'uniqlo', 'goodwill', 'salvation army', 'plato', 'closet', 'apparel', 'clothing', 'shoe', 'foot locker'].some(k => lowerDesc.includes(k))) {
             cat = 'Clothes';
         }
-        // 3. Electronics/Games
         else if (['best buy', 'micro center', 'apple', 'nintendo', 'steam', 'playstation', 'xbox', 'gamestop', 'ubisoft', 'blizzard', 'epic games', 'electronic', 'tech'].some(k => lowerDesc.includes(k))) {
             cat = 'Electronics/Games';
         }
-        // 4. Gifts
         else if (['etsy', 'flower', 'gift', 'hallmark', 'party city', 'present'].some(k => lowerDesc.includes(k))) {
             cat = 'Gifts';
         }
-        // 5. Dining
         else if (['restaurant', 'cafe', 'coffee', 'starbucks', 'dunkin', 'mcdonalds', 'chick-fil-a', 'burger', 'taco', 'chipotle', 'pizza', 'eats', 'doordash', 'grubhub', 'uber eats', 'grill', 'bistro', 'steak', 'bar', 'dominos', 'bagel', 'ny bagel', 'dd/br', 'kfc', 'popeyes', 'wendy', 'sonic', 'subway', 'jersey mike', 'panera', 'sushi', 'diner'].some(k => lowerDesc.includes(k))) {
             cat = 'Dining';
         } 
-        // 6. Groceries
         else if (['grocery', 'market', 'kroger', 'whole foods', 'trader joe', 'publix', 'heb', 'harris teeter', 'wegmans', 'aldi', 'lidl', 'walmart', 'target', 'food lion', 'safeway', 'bj\'s', 'wholesale', 'sam\'s club', 'samsclub', 'sams club', 'costco', 'meijer', 'walgreens', 'cvs'].some(k => lowerDesc.includes(k))) {
             cat = 'Groceries';
         }
-        // 7. General Fun (Legacy fallback)
         else if (['amc', 'regal', 'cinema', 'movie', 'ticket', 'stubhub', 'seatgeek', 'eventbrite', 'golf', 'bowling', 'entertainment', 'hobby', 'toy', 'lego', 'party', 'club', 'vape', 'smoke', 'dispensary'].some(k => lowerDesc.includes(k))) {
-            cat = 'For Fun';
+            cat = 'For Fun'; // Keep legacy detection, but user can't select it manually
         }
-        // 8. Rent
         else if (lowerDesc.includes('flex finance') || lowerDesc.includes('getflex.com') || ['rent', 'lease', 'apartment', 'property'].some(k => lowerDesc.includes(k))) {
              cat = 'Rent';
         }
-        // 9. Bills
         else if (['youtube', 'google', 'disney', 'hulu', 'netflix', 'spotify', 'apple', 'insurance', 'utilities', 'electric', 'water', 'internet', 'spectrum', 'att', 'verizon'].some(k => lowerDesc.includes(k))) {
             cat = 'Bills';
         }
-        // 10. Debt
         else if (['loan', 'payment', 'credit card', 'chase', 'amex', 'citi', 'discover', 'capital one', 'synchrony', 'affirm'].some(k => lowerDesc.includes(k))) {
             cat = 'Debt';
         }
-        // 11. Income
         else if (['payroll', 'deposit', 'salary', 'elevate'].some(k => lowerDesc.includes(k))) {
             cat = 'Income';
         }
-        // 12. P2P
         else if (['venmo', 'zelle', 'cash app', 'paypal'].some(k => lowerDesc.includes(k))) {
             cat = amount > 0 ? 'Income' : 'Other'; 
         }
@@ -415,18 +401,16 @@ const App: React.FC = () => {
           {(activeTab as any) === 'bills_today' && <DueBillsView data={data} mode="today" onBack={() => setActiveTab('dashboard')} />}
           {(activeTab as any) === 'bills_week' && <DueBillsView data={data} mode="week" onBack={() => setActiveTab('dashboard')} />}
 
-         {activeTab === 'calendar' && 
+          {activeTab === 'calendar' && 
             <CalendarView 
                 data={data} 
                 monthOffset={monthOffset}
                 setMonthOffset={setMonthOffset}
-                onOpenBillModal={(b) => { setEditingBill(b || null); setIsBillModalOpen(true); }}
-                // Added these two lines:
+                onOpenBillModal={(b) => { setEditingBill(b || null); setIsBillModalOpen(true); }} 
                 onUpdateRent={handleUpdateRent}
                 onTogglePaid={handleToggleBillId}
             />
           }
-          
           
           {activeTab === 'spending' && 
             <SpendingView 
@@ -439,7 +423,7 @@ const App: React.FC = () => {
           
           {activeTab === 'debt' && <DebtView />}
           
-          {/* NEW CATEGORIES VIEW */}
+          {/* Categories Page */}
           {(activeTab as any) === 'categories' && 
              <CategoriesView 
                 data={data} 
@@ -458,6 +442,7 @@ const App: React.FC = () => {
             />
           }
           
+          {/* Keep FunView route, but redirect dashboard button to 'categories' later */}
           {activeTab === 'fun' && 
             <FunView 
                 data={data} 
@@ -494,7 +479,7 @@ const App: React.FC = () => {
                     <option>Clothes</option>
                     <option>Electronics/Games</option>
                     <option>Gifts</option>
-                    <option>For Fun</option>
+                    {/* "For Fun" REMOVED from here */}
                     <option>Rent</option>
                     <option>Bills</option>
                     <option>Debt</option>
@@ -511,7 +496,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Bill Modal */}
+      {/* Bill Modal (unchanged) */}
       {isBillModalOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-[#171717] border border-[#262626] rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl">
@@ -553,7 +538,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Import Conflict Modal - kept same */}
+      {/* Import Conflict Modal (unchanged) */}
       {isImportModalOpen && importConflicts.length > 0 && (
          <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
            <div className="bg-[#171717] border border-[#262626] rounded-3xl w-full max-w-lg p-6 flex flex-col max-h-[85vh] shadow-2xl">
