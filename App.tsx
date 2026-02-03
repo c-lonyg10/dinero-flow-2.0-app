@@ -87,7 +87,58 @@ const App: React.FC = () => {
     if(confirm("Reset all data?")) {
       setData(INITIAL_DATA);
       localStorage.removeItem('moneyflow_data_v35');
+      // Also clear debts
+      localStorage.removeItem('moneyflow_debts_v3');
     }
+  };
+
+  // --- NEW EXPORT FUNCTION ---
+  const handleExportData = () => {
+      // 1. Gather all data (App Data + Debt Data)
+      const debts = localStorage.getItem('moneyflow_debts_v3');
+      const exportObj = {
+          appData: data,
+          debtData: debts ? JSON.parse(debts) : []
+      };
+
+      // 2. Create a blob
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj));
+      
+      // 3. Trigger Download
+      const downloadAnchorNode = document.createElement('a');
+      downloadAnchorNode.setAttribute("href", dataStr);
+      downloadAnchorNode.setAttribute("download", "moneyflow_backup_" + new Date().toISOString().slice(0,10) + ".json");
+      document.body.appendChild(downloadAnchorNode); // required for firefox
+      downloadAnchorNode.click();
+      downloadAnchorNode.remove();
+  };
+
+  // --- NEW RESTORE FUNCTION ---
+  const handleRestoreData = (file: File) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+          try {
+              const text = e.target?.result as string;
+              const parsed = JSON.parse(text);
+
+              // Check if it's our new full backup format or legacy
+              if (parsed.appData) {
+                  // Full Backup
+                  setData(parsed.appData);
+                  if (parsed.debtData) {
+                      localStorage.setItem('moneyflow_debts_v3', JSON.stringify(parsed.debtData));
+                  }
+                  alert("Restore Successful! Please refresh the app.");
+              } else {
+                  // Legacy Backup (Just AppData)
+                  setData(parsed);
+                  alert("Legacy Restore Successful!");
+              }
+          } catch (err) {
+              alert("Failed to restore file. Is it a valid JSON?");
+          }
+      };
+      reader.readAsText(file);
   };
 
   const handleImportCSV = (file: File) => {
@@ -139,7 +190,6 @@ const App: React.FC = () => {
         const lowerDesc = desc.toLowerCase();
         
         // --- CATEGORIZATION RULES ---
-        // 1. MUSIC GEAR (New!)
         if (['guitar center', 'sweetwater', 'reverb', 'fender', 'gibson', 'strings', 'music', 'audio', 'pedal', 'amp', 'drum', 'thomann', 'sam ash', 'zounds'].some(k => lowerDesc.includes(k))) {
             cat = 'Music Gear';
         }
@@ -455,12 +505,23 @@ const App: React.FC = () => {
             />
           }
 
-          {activeTab === 'settings' && <SettingsView data={data} onUpdateBudget={handleUpdateBudget} onReset={handleReset} onImport={handleImportCSV} />}
+          {activeTab === 'settings' && 
+            <SettingsView 
+                data={data} 
+                onUpdateBudget={handleUpdateBudget} 
+                onReset={handleReset} 
+                onImport={handleImportCSV} 
+                // Passed these new functions down:
+                onExport={handleExportData}
+                onRestore={handleRestoreData}
+            />
+          }
         </div>
       </main>
 
       <Navbar activeTab={activeTab} onSwitch={setActiveTab} />
 
+      {/* Modals ... (Rest of file is same) */}
       {/* Transaction Modal */}
       {isTxModalOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
