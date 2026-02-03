@@ -1,14 +1,14 @@
 import React, { useMemo } from 'react';
 import { AppData } from '../types';
-import { ArrowLeft, ArrowRight, TrendingUp } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis } from 'recharts';
+import { ArrowLeft, ArrowRight, TrendingUp, BarChart3 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface CategoriesViewProps {
   data: AppData;
   monthOffset: number;
   setMonthOffset: (offset: number) => void;
   onBack: () => void;
-  onOpenYear: () => void; // NEW PROP
+  onOpenYear: () => void; // The new prop for the Gold Button
 }
 
 const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setMonthOffset, onBack, onOpenYear }) => {
@@ -41,32 +41,16 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
 
       return Object.entries(totals)
           .map(([name, value]) => ({ name, value }))
-          .sort((a, b) => b.value - a.value);
+          .sort((a, b) => b.value - a.value); // Sort highest spend first
   }, [monthTx]);
 
-  // 3-Month Trend Data
-  const trendData = [2, 1, 0].map(offset => {
-      const d = new Date();
-      d.setMonth(d.getMonth() - offset);
-      const m = d.getMonth();
-      const y = d.getFullYear();
-      
-      const spent = data.transactions
-        .filter(t => {
-            const td = new Date(t.d);
-            return td.getMonth() === m && td.getFullYear() === y && t.a < 0 && t.c !== 'Income';
-        })
-        .reduce((sum, t) => sum + Math.abs(t.a), 0);
-
-      return { name: d.toLocaleDateString('en-US', { month: 'short' }), spent };
-  });
-
-  // Colors
-  const COLORS = ['#ef4444', '#f97316', '#a855f7', '#06b6d4', '#ec4899', '#10b981', '#6366f1', '#8b5cf6'];
+  // Colors for the bars
+  const COLORS = ['#ef4444', '#f97316', '#eab308', '#a855f7', '#06b6d4', '#ec4899', '#10b981', '#6366f1'];
 
   return (
-    <div className="space-y-6 pb-24 animate-fade-in">
-        <div className="flex items-center gap-2 pt-4 px-1">
+    <div className="space-y-6 pb-24 animate-fade-in h-[100dvh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center gap-2 pt-4 px-1 shrink-0">
             <button onClick={onBack} className="p-2 bg-neutral-800 rounded-full text-white hover:bg-neutral-700">
                 <ArrowLeft size={20} />
             </button>
@@ -74,82 +58,69 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
         </div>
 
         {/* Month Selector */}
-        <div className="flex items-center justify-between bg-[#171717] p-2 rounded-2xl border border-[#262626]">
+        <div className="shrink-0 flex items-center justify-between bg-[#171717] p-2 rounded-2xl border border-[#262626]">
             <button onClick={() => setMonthOffset(monthOffset + 1)} className="p-2 text-neutral-400 hover:text-white"><ArrowLeft size={18}/></button>
             <span className="font-bold text-sm text-white">{monthLabel}</span>
             <button onClick={() => setMonthOffset(monthOffset - 1)} className="p-2 text-neutral-400 hover:text-white"><ArrowRight size={18}/></button>
         </div>
 
-        {/* Donut Chart */}
-        <div className="bg-[#171717] border border-[#262626] p-6 rounded-3xl shadow-lg flex flex-col items-center">
-            <div className="h-64 w-full relative">
-                 <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                        <Pie
-                            data={catTotals}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={60}
-                            outerRadius={80}
-                            paddingAngle={5}
-                            dataKey="value"
-                            stroke="none"
-                        >
-                            {catTotals.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                        </Pie>
-                        <Tooltip 
-                            contentStyle={{ backgroundColor: '#000', borderRadius: '10px', border: '1px solid #333' }}
-                            itemStyle={{ color: '#fff' }}
-                        />
-                    </PieChart>
-                 </ResponsiveContainer>
-                 {/* Center Text */}
-                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                     <span className="text-xs text-neutral-500 font-bold uppercase">Total</span>
-                     <span className="text-2xl font-black text-white">${catTotals.reduce((s, c) => s + c.value, 0).toLocaleString()}</span>
-                 </div>
-            </div>
+        {/* MAIN CHART & LIST (Scrollable Area) */}
+        <div className="flex-1 overflow-y-auto min-h-0 space-y-6">
             
-            {/* Legend */}
-            <div className="w-full grid grid-cols-2 gap-3 mt-4">
-                {catTotals.map((cat, i) => (
-                    <div key={cat.name} className="flex justify-between items-center text-xs">
-                        <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }}></div>
-                            <span className="text-neutral-300">{cat.name}</span>
-                        </div>
-                        <span className="font-bold text-white">${cat.value.toFixed(0)}</span>
+            {/* Horizontal Bar Chart (The "Graph + List" look) */}
+            <div className="bg-[#171717] border border-[#262626] p-5 rounded-3xl shadow-lg">
+                <h3 className="font-bold text-white mb-2 text-sm flex items-center gap-2">
+                    <BarChart3 size={16} className="text-blue-400"/> Spending Breakdown
+                </h3>
+                
+                {catTotals.length > 0 ? (
+                    <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart 
+                                data={catTotals} 
+                                layout="vertical" 
+                                margin={{ top: 0, right: 30, left: 0, bottom: 0 }}
+                            >
+                                <XAxis type="number" hide />
+                                <YAxis 
+                                    dataKey="name" 
+                                    type="category" 
+                                    width={100} 
+                                    tick={{ fill: '#a3a3a3', fontSize: 11, fontWeight: 'bold' }} 
+                                    axisLine={false}
+                                    tickLine={false}
+                                />
+                                <Tooltip 
+                                    cursor={{fill: '#262626'}} 
+                                    contentStyle={{ backgroundColor: '#000', borderRadius: '8px', border: '1px solid #333' }}
+                                    formatter={(value: number) => [`$${value.toFixed(0)}`, 'Spent']}
+                                />
+                                <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20}>
+                                    {catTotals.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
                     </div>
-                ))}
+                ) : (
+                    <div className="h-32 flex items-center justify-center text-neutral-600 text-xs">
+                        No spending data for this month
+                    </div>
+                )}
+            </div>
+
+            {/* GOLD BUTTON (Year Review) */}
+            <div className="px-1 pb-6">
+                <button 
+                    onClick={onOpenYear}
+                    className="w-full py-4 bg-gradient-to-r from-yellow-600 to-yellow-800 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-yellow-900/20 active:scale-95 transition-transform"
+                >
+                    <span className="text-white font-black uppercase tracking-wider text-sm">View 2026 Year in Review</span>
+                    <ArrowRight className="text-yellow-200" size={18} />
+                </button>
             </div>
         </div>
-
-        {/* 3-Month Trend */}
-        <div className="bg-[#171717] border border-[#262626] p-5 rounded-3xl">
-            <h3 className="font-bold text-white mb-4 text-sm flex items-center gap-2">
-                <TrendingUp size={16} className="text-emerald-400"/> Spending Trend
-            </h3>
-            <div className="h-32 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={trendData}>
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#666' }} />
-                        <Tooltip cursor={{fill: '#262626'}} contentStyle={{ backgroundColor: '#000', borderRadius: '8px', border: 'none' }} />
-                        <Bar dataKey="spent" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
-                    </BarChart>
-                </ResponsiveContainer>
-            </div>
-        </div>
-
-        {/* GOLD BUTTON FOR YEAR VIEW */}
-        <button 
-            onClick={onOpenYear}
-            className="w-full py-4 bg-gradient-to-r from-yellow-600 to-yellow-800 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-yellow-900/20 active:scale-95 transition-transform"
-        >
-            <span className="text-white font-black uppercase tracking-wider text-sm">View 2026 Year in Review</span>
-            <ArrowRight className="text-yellow-200" size={18} />
-        </button>
     </div>
   );
 };
