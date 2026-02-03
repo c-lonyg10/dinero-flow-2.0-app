@@ -1,13 +1,13 @@
 import React from 'react';
 import { AppData } from '../types';
-import { Gamepad2, Shirt, Fuel, Gift, Utensils, ShoppingCart, ChevronDown, ArrowLeft } from 'lucide-react';
+import { Gamepad2, Shirt, Fuel, Gift, Utensils, ShoppingCart, ChevronDown, Music } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
 interface CategoriesViewProps {
   data: AppData;
   monthOffset: number;
   setMonthOffset: (offset: number) => void;
-  onBack: () => void; // Added onBack for flexibility
+  onBack: () => void;
 }
 
 const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setMonthOffset, onBack }) => {
@@ -22,24 +22,27 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
   });
 
   // Calculate Total Monthly Spend (to use as a baseline for percentages)
-  const totalMonthlySpend = monthTx.filter(t => t.a < 0 && t.c !== 'Rent' && t.c !== 'Bills' && t.c !== 'Debt').reduce((s, t) => s + Math.abs(t.a), 0);
+  // Excludes Rent, Bills, Debt, Income, Other
+  const totalMonthlySpend = monthTx.filter(t => 
+      t.a < 0 && 
+      !['Rent', 'Bills', 'Debt', 'Income', 'Other'].includes(t.c)
+  ).reduce((s, t) => s + Math.abs(t.a), 0);
 
   // Helper to build category data
   const getCatData = (catName: string, icon: React.ReactNode, color: string, chartColor: string) => {
       const txs = monthTx.filter(t => t.c === catName);
       const total = txs.reduce((s, t) => s + Math.abs(t.a), 0);
       
-      // Calculate "Share of Wallet" (Percentage of total spending)
-      // If total spend is 0, progress is 0 to avoid NaN
       const progress = totalMonthlySpend > 0 ? (total / totalMonthlySpend) * 100 : 0;
       
-      const pieData = [{ value: total }, { value: totalMonthlySpend - total }];
+      const pieData = [{ value: total }, { value: Math.max(0, totalMonthlySpend - total) }];
 
       return { name: catName, total, progress, icon, color, chartColor, pieData, txCount: txs.length };
   };
 
   const categories = [
       getCatData("Electronics/Games", <Gamepad2 size={24} className="text-purple-400" />, "text-purple-400", "#c084fc"),
+      getCatData("Music Gear", <Music size={24} className="text-cyan-400" />, "text-cyan-400", "#22d3ee"),
       getCatData("Clothes", <Shirt size={24} className="text-pink-400" />, "text-pink-400", "#f472b6"),
       getCatData("Gas", <Fuel size={24} className="text-orange-400" />, "text-orange-400", "#fb923c"),
       getCatData("Gifts", <Gift size={24} className="text-red-400" />, "text-red-400", "#f87171"),

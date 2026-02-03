@@ -139,7 +139,11 @@ const App: React.FC = () => {
         const lowerDesc = desc.toLowerCase();
         
         // --- CATEGORIZATION RULES ---
-        if (['shell', 'exxon', 'mobil', 'qt', 'quik trip', 'quiktrip', 'race trac', 'racetrac', 'circle k', 'bp', 'chevron', 'texaco', 'sheetz', 'wawa', '7-eleven', 'citgo', 'murphy', 'love\'s', 'pilot'].some(k => lowerDesc.includes(k))) {
+        // 1. MUSIC GEAR (New!)
+        if (['guitar center', 'sweetwater', 'reverb', 'fender', 'gibson', 'strings', 'music', 'audio', 'pedal', 'amp', 'drum', 'thomann', 'sam ash', 'zounds'].some(k => lowerDesc.includes(k))) {
+            cat = 'Music Gear';
+        }
+        else if (['shell', 'exxon', 'mobil', 'qt', 'quik trip', 'quiktrip', 'race trac', 'racetrac', 'circle k', 'bp', 'chevron', 'texaco', 'sheetz', 'wawa', '7-eleven', 'citgo', 'murphy', 'love\'s', 'pilot'].some(k => lowerDesc.includes(k))) {
             cat = 'Gas';
         }
         else if (['nike', 'adidas', 'tj maxx', 'ross', 'marshalls', 'gap', 'old navy', 'h&m', 'zara', 'uniqlo', 'goodwill', 'salvation army', 'plato', 'closet', 'apparel', 'clothing', 'shoe', 'foot locker'].some(k => lowerDesc.includes(k))) {
@@ -158,7 +162,7 @@ const App: React.FC = () => {
             cat = 'Groceries';
         }
         else if (['amc', 'regal', 'cinema', 'movie', 'ticket', 'stubhub', 'seatgeek', 'eventbrite', 'golf', 'bowling', 'entertainment', 'hobby', 'toy', 'lego', 'party', 'club', 'vape', 'smoke', 'dispensary'].some(k => lowerDesc.includes(k))) {
-            cat = 'For Fun'; // Keep legacy detection, but user can't select it manually
+            cat = 'For Fun'; 
         }
         else if (lowerDesc.includes('flex finance') || lowerDesc.includes('getflex.com') || ['rent', 'lease', 'apartment', 'property'].some(k => lowerDesc.includes(k))) {
              cat = 'Rent';
@@ -423,7 +427,6 @@ const App: React.FC = () => {
           
           {activeTab === 'debt' && <DebtView />}
           
-          {/* Categories Page */}
           {(activeTab as any) === 'categories' && 
              <CategoriesView 
                 data={data} 
@@ -442,7 +445,6 @@ const App: React.FC = () => {
             />
           }
           
-          {/* Keep FunView route, but redirect dashboard button to 'categories' later */}
           {activeTab === 'fun' && 
             <FunView 
                 data={data} 
@@ -478,8 +480,8 @@ const App: React.FC = () => {
                     <option>Gas</option>
                     <option>Clothes</option>
                     <option>Electronics/Games</option>
+                    <option>Music Gear</option>
                     <option>Gifts</option>
-                    {/* "For Fun" REMOVED from here */}
                     <option>Rent</option>
                     <option>Bills</option>
                     <option>Debt</option>
@@ -496,7 +498,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Bill Modal (unchanged) */}
+      {/* Bill Modal */}
       {isBillModalOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-[#171717] border border-[#262626] rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl">
@@ -538,7 +540,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Import Conflict Modal (unchanged) */}
+      {/* Import Conflict Modal */}
       {isImportModalOpen && importConflicts.length > 0 && (
          <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
            <div className="bg-[#171717] border border-[#262626] rounded-3xl w-full max-w-lg p-6 flex flex-col max-h-[85vh] shadow-2xl">
