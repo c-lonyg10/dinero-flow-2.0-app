@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { AppData } from '../types';
-import { ArrowLeft, ArrowRight, TrendingUp, DollarSign } from 'lucide-react';
+import { ArrowLeft, ArrowRight, TrendingUp, Music, Home, Zap, Coffee, ShoppingBag, Gamepad2, Fuel, Shirt, Gift, Smile, DollarSign, CreditCard } from 'lucide-react';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface CategoriesViewProps {
@@ -20,28 +20,25 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
   
   const monthLabel = targetDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-  // Filter transactions for selected month
+  // Filter transactions
   const monthTx = data.transactions.filter(t => {
       const d = new Date(t.d);
       return d.getMonth() === targetMonth && d.getFullYear() === targetYear;
   });
 
-  // 1. Calculate Category Rings Data
+  // 1. Calculate Category Data
   const categories = useMemo(() => {
       const totals: Record<string, number> = {};
-      let totalSpent = 0;
       let totalIncome = 0;
 
       monthTx.forEach(t => {
           if (t.a < 0 && t.c !== 'Income' && t.c !== 'Other') {
               const val = Math.abs(t.a);
               totals[t.c] = (totals[t.c] || 0) + val;
-              totalSpent += val;
           }
           if (t.a > 0) totalIncome += t.a;
       });
 
-      // Sort by highest spend
       return Object.entries(totals)
           .map(([name, value]) => ({ 
               name, 
@@ -51,7 +48,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
           .sort((a, b) => b.value - a.value);
   }, [monthTx]);
 
-  // 2. Calculate 3-Month Trend Data (Income vs Fixed vs Fun)
+  // 2. Trend Data
   const trendData = [2, 1, 0].map(offset => {
       const d = new Date();
       d.setMonth(d.getMonth() - offset);
@@ -64,11 +61,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
       });
 
       const income = txs.filter(t => t.a > 0).reduce((sum, t) => sum + t.a, 0);
-      
-      // Fixed = Rent, Bills, Debt
       const fixed = txs.filter(t => t.a < 0 && ['Rent', 'Bills', 'Debt'].includes(t.c)).reduce((sum, t) => sum + Math.abs(t.a), 0);
-      
-      // Fun = Everything else (Dining, Shopping, etc)
       const fun = txs.filter(t => t.a < 0 && !['Rent', 'Bills', 'Debt', 'Income', 'Other'].includes(t.c)).reduce((sum, t) => sum + Math.abs(t.a), 0);
 
       return { 
@@ -79,17 +72,21 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
       };
   });
 
-  // Helper for Ring Color
-  const getRingColor = (cat: string) => {
+  // --- CONFIGURATION: Colors & Icons ---
+  const getCategoryConfig = (cat: string) => {
       switch(cat) {
-          case 'Rent': return '#06b6d4'; // Cyan
-          case 'Bills': return '#ec4899'; // Pink
-          case 'Debt': return '#ef4444'; // Red
-          case 'Dining': return '#f97316'; // Orange
-          case 'Groceries': return '#10b981'; // Emerald
-          case 'Music Gear': return '#3b82f6'; // Blue
-          case 'Fun': return '#a855f7'; // Purple
-          default: return '#6366f1'; // Indigo
+          case 'Rent': return { color: '#06b6d4', icon: <Home size={14} /> }; // Cyan
+          case 'Bills': return { color: '#ec4899', icon: <Zap size={14} /> }; // Pink
+          case 'Debt': return { color: '#ef4444', icon: <CreditCard size={14} /> }; // Red
+          case 'Dining': return { color: '#f97316', icon: <Coffee size={14} /> }; // Orange
+          case 'Groceries': return { color: '#10b981', icon: <ShoppingBag size={14} /> }; // Emerald
+          case 'Music Gear': return { color: '#3b82f6', icon: <Music size={14} /> }; // Blue
+          case 'Electronics/Games': return { color: '#8b5cf6', icon: <Gamepad2 size={14} /> }; // Violet
+          case 'Gas': return { color: '#eab308', icon: <Fuel size={14} /> }; // Yellow
+          case 'Clothes': return { color: '#d946ef', icon: <Shirt size={14} /> }; // Fuchsia
+          case 'Gifts': return { color: '#f43f5e', icon: <Gift size={14} /> }; // Rose
+          case 'For Fun': return { color: '#84cc16', icon: <Smile size={14} /> }; // Lime
+          default: return { color: '#a3a3a3', icon: <DollarSign size={14} /> };
       }
   };
 
@@ -110,41 +107,50 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
             <button onClick={() => setMonthOffset(monthOffset - 1)} className="p-2 text-neutral-400 hover:text-white"><ArrowRight size={18}/></button>
         </div>
 
-        {/* RINGS GRID (The "Command Center" Look) */}
+        {/* RINGS GRID - THE ORIGINAL LAYOUT */}
         <div className="grid grid-cols-2 gap-3">
             {categories.map((cat) => {
-                const color = getRingColor(cat.name);
-                const radius = 30;
+                const config = getCategoryConfig(cat.name);
+                const radius = 28;
                 const circumference = 2 * Math.PI * radius;
                 const strokeDashoffset = circumference - (Math.min(cat.percent, 100) / 100) * circumference;
 
                 return (
-                    <div key={cat.name} className="bg-[#171717] border border-[#262626] p-4 rounded-2xl flex flex-col items-center justify-center shadow-lg relative overflow-hidden">
-                        {/* Ring SVG */}
-                        <div className="relative w-20 h-20 mb-2">
-                            <svg className="w-full h-full -rotate-90" viewBox="0 0 80 80">
-                                {/* Background Circle */}
-                                <circle cx="40" cy="40" r={radius} stroke="#262626" strokeWidth="6" fill="none" />
-                                {/* Progress Circle */}
-                                <circle 
-                                    cx="40" cy="40" r={radius} 
-                                    stroke={color} 
-                                    strokeWidth="6" 
-                                    fill="none" 
-                                    strokeDasharray={circumference} 
-                                    strokeDashoffset={strokeDashoffset}
-                                    strokeLinecap="round"
-                                />
-                            </svg>
-                            {/* Percentage in Middle */}
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <span className="text-xs font-bold text-white">{cat.percent.toFixed(0)}%</span>
+                    <div key={cat.name} className="bg-[#171717] border border-[#262626] p-4 rounded-2xl flex flex-col justify-between shadow-lg relative overflow-hidden min-h-[140px]">
+                        
+                        {/* Header: Icon + Name */}
+                        <div className="flex items-center gap-2 mb-2">
+                             <div style={{ color: config.color, backgroundColor: `${config.color}20` }} className="p-1.5 rounded-lg">
+                                 {config.icon}
+                             </div>
+                             <h4 className="text-[10px] font-bold text-neutral-300 uppercase truncate leading-tight w-full">{cat.name}</h4>
+                        </div>
+
+                        {/* Centered Ring */}
+                        <div className="flex-1 flex flex-col items-center justify-center relative">
+                            <div className="relative w-16 h-16">
+                                <svg className="w-full h-full -rotate-90" viewBox="0 0 80 80">
+                                    <circle cx="40" cy="40" r={radius} stroke="#262626" strokeWidth="6" fill="none" />
+                                    <circle 
+                                        cx="40" cy="40" r={radius} 
+                                        stroke={config.color} 
+                                        strokeWidth="6" 
+                                        fill="none" 
+                                        strokeDasharray={circumference} 
+                                        strokeDashoffset={strokeDashoffset}
+                                        strokeLinecap="round"
+                                    />
+                                </svg>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <span className="text-[10px] font-bold text-white">{cat.percent.toFixed(0)}%</span>
+                                </div>
                             </div>
                         </div>
                         
-                        {/* Labels */}
-                        <h4 className="text-xs font-bold text-neutral-400 uppercase truncate max-w-full">{cat.name}</h4>
-                        <p className="text-lg font-black text-white">${cat.value.toFixed(0)}</p>
+                        {/* Bottom: Amount */}
+                        <div className="text-center mt-2">
+                            <p className="text-lg font-black text-white">${cat.value.toFixed(0)}</p>
+                        </div>
                     </div>
                 );
             })}
@@ -153,7 +159,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
             )}
         </div>
 
-        {/* 3-MONTH BAR GRAPH (Income vs Fixed vs Fun) */}
+        {/* 3-MONTH TREND GRAPH */}
         <div className="bg-[#171717] border border-[#262626] p-5 rounded-3xl shadow-lg">
             <h3 className="font-bold text-white mb-4 text-sm flex items-center gap-2">
                 <TrendingUp size={16} className="text-emerald-400"/> 3-Month Trend
