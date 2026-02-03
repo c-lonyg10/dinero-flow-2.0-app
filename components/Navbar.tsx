@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Calendar, Home, Utensils, Sword, Receipt } from 'lucide-react';
+import { LayoutDashboard, Calendar, Home, Utensils, Sword, Receipt, PieChart } from 'lucide-react';
 import { TabType } from '../types';
 
 interface NavbarProps {
@@ -8,17 +8,19 @@ interface NavbarProps {
 }
 
 const Navbar: React.FC<NavbarProps> = ({ activeTab, onSwitch }) => {
-  const navItems: { id: TabType; icon: React.ReactNode }[] = [
+  // changed id type to 'any' temporarily so it works before we update types.ts
+  const navItems: { id: any; icon: React.ReactNode }[] = [
     { id: 'dashboard', icon: <LayoutDashboard size={24} /> },
     { id: 'calendar', icon: <Calendar size={24} /> },
     { id: 'rent', icon: <Home size={24} /> },
-    { id: 'spending', icon: <Utensils size={24} /> },
+    { id: 'spending', icon: <Utensils size={24} /> }, // Food
+    { id: 'categories', icon: <PieChart size={24} /> }, // NEW: Categories
     { id: 'debt', icon: <Sword size={24} /> },
     { id: 'transactions', icon: <Receipt size={24} /> },
   ];
 
   return (
-    <nav className="fixed bottom-6 left-4 right-4 max-w-lg mx-auto bg-[#171717] border border-[#262626] rounded-2xl shadow-2xl flex justify-between px-2 py-3 z-50">
+    <nav className="fixed bottom-6 left-2 right-2 max-w-lg mx-auto bg-[#171717] border border-[#262626] rounded-2xl shadow-2xl flex justify-between px-1 py-3 z-50">
       {navItems.map((item) => (
         <button
           key={item.id}

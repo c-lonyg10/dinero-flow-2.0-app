@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import DueBillsView from './components/DueBillsView';
 import Navbar from './components/Navbar';
 import DashboardView from './components/DashboardView';
 import CalendarView from './components/CalendarView';
@@ -9,6 +8,8 @@ import DebtView from './components/DebtView';
 import TransactionsView from './components/TransactionsView';
 import SettingsView from './components/SettingsView';
 import FunView from './components/FunView';
+import CategoriesView from './components/CategoriesView'; // NEW IMPORT
+import DueBillsView from './components/DueBillsView';
 import { AppData, INITIAL_DATA, TabType, Transaction, Bill } from './types';
 import { X, Check, Trash2, AlertTriangle, ArrowRight, RefreshCw } from 'lucide-react';
 
@@ -20,7 +21,7 @@ interface ImportConflict {
 const App: React.FC = () => {
   const [data, setData] = useState<AppData>(INITIAL_DATA);
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
-  const [monthOffset, setMonthOffset] = useState(0); // 0 = Current, 1 = Last, -1 = Next
+  const [monthOffset, setMonthOffset] = useState(0); 
   
   // Modals state
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
@@ -99,7 +100,6 @@ const App: React.FC = () => {
       const lines = text.split('\n');
       const parsedTxs: Transaction[] = [];
       
-      // Attempt to identify headers
       const headerLine = lines.find(l => l.toLowerCase().includes('date') && l.toLowerCase().includes('description'));
       const startIndex = headerLine ? lines.indexOf(headerLine) + 1 : 0;
       
@@ -139,59 +139,55 @@ const App: React.FC = () => {
         let cat = 'Other';
         const lowerDesc = desc.toLowerCase();
         
-        // --- CATEGORIZATION RULES ---
+        // --- UPDATED CATEGORIZATION RULES ---
 
-        // 1. Strict Rent Rules for Flex
-        if (lowerDesc.includes('flex finance') || lowerDesc.includes('getflex.com')) {
-             if (Math.abs(amount) === 500 || Math.abs(amount) === 400) {
-                 cat = 'Rent';
-             } else {
-                 cat = 'Rent'; // Default to rent if name matches, even if amount varies slightly
-             }
+        // 1. Gas
+        if (['shell', 'exxon', 'mobil', 'qt', 'quik trip', 'quiktrip', 'race trac', 'racetrac', 'circle k', 'bp', 'chevron', 'texaco', 'sheetz', 'wawa', '7-eleven', 'citgo', 'murphy', 'love\'s', 'pilot'].some(k => lowerDesc.includes(k))) {
+            cat = 'Gas';
         }
-        // 2. Bills (Match against configured Bills)
-        else {
-            const billMatch = data.bills.find(b => lowerDesc.includes(b.name.toLowerCase()));
-            if (billMatch) {
-                // If it looks like a loan or card, call it Debt, otherwise Bills
-                if (['loan', 'card', 'finance', 'chase', 'amex', 'citi', 'synchrony'].some(k => billMatch.name.toLowerCase().includes(k))) {
-                    cat = 'Debt';
-                } else {
-                    cat = 'Bills';
-                }
-            }
-            // 3. Specific Subscriptions/Services
-            else if (['youtube', 'google *disney', 'google *youtube', 'google play', 'google storage', 'google *svcs', 'disney+', 'hulu', 'netflix', 'spotify', 'apple.com/bill'].some(k => lowerDesc.includes(k))) {
-                cat = 'Bills';
-            }
-            // 3.5 For Fun
-            else if (['steam', 'playstation', 'xbox', 'nintendo', 'game', 'amc', 'regal', 'cinema', 'movie', 'ticket', 'stubhub', 'seatgeek', 'eventbrite', 'golf', 'bowling', 'entertainment', 'hobby', 'toy', 'lego', 'party', 'club', 'vape', 'smoke', 'dispensary'].some(k => lowerDesc.includes(k))) {
-                cat = 'For Fun';
-            }
-            // 4. Debt Keywords
-            else if (['loan', 'payment', 'credit card', 'chase', 'amex', 'citi', 'discover', 'capital one', 'synchrony', 'affirm'].some(k => lowerDesc.includes(k))) {
-                cat = 'Debt';
-            }
-            // 5. Rent Keywords (General)
-            else if (['rent', 'lease', 'apartment', 'property'].some(k => lowerDesc.includes(k))) {
-                cat = 'Rent';
-            }
-            // 6. Dining Logic
-            else if (['restaurant', 'cafe', 'coffee', 'starbucks', 'dunkin', 'mcdonalds', 'chick-fil-a', 'burger', 'taco', 'chipotle', 'pizza', 'eats', 'doordash', 'grubhub', 'uber eats', 'grill', 'bistro', 'steak', 'bar', 'dominos', 'bagel', 'ny bagel', 'dd/br', 'kfc', 'popeyes', 'wendy', 'sonic', 'subway', 'jersey mike', 'panera', 'sushi', 'diner'].some(k => lowerDesc.includes(k))) {
-                cat = 'Dining';
-            } 
-            // 7. Grocery Logic
-            else if (['grocery', 'market', 'kroger', 'whole foods', 'trader joe', 'publix', 'heb', 'harris teeter', 'wegmans', 'aldi', 'lidl', 'walmart', 'target', 'food lion', 'safeway', 'bj\'s', 'wholesale', 'sam\'s club', 'samsclub', 'sams club', 'costco', 'meijer', 'walgreens', 'cvs'].some(k => lowerDesc.includes(k))) {
-                cat = 'Groceries';
-            }
-            // 8. Income Logic
-            else if (['payroll', 'deposit', 'salary', 'elevate'].some(k => lowerDesc.includes(k))) {
-                cat = 'Income';
-            }
-            // 9. P2P Logic
-            else if (['venmo', 'zelle', 'cash app', 'paypal'].some(k => lowerDesc.includes(k))) {
-                cat = amount > 0 ? 'Income' : 'Other'; 
-            }
+        // 2. Clothes
+        else if (['nike', 'adidas', 'tj maxx', 'ross', 'marshalls', 'gap', 'old navy', 'h&m', 'zara', 'uniqlo', 'goodwill', 'salvation army', 'plato', 'closet', 'apparel', 'clothing', 'shoe', 'foot locker'].some(k => lowerDesc.includes(k))) {
+            cat = 'Clothes';
+        }
+        // 3. Electronics/Games
+        else if (['best buy', 'micro center', 'apple', 'nintendo', 'steam', 'playstation', 'xbox', 'gamestop', 'ubisoft', 'blizzard', 'epic games', 'electronic', 'tech'].some(k => lowerDesc.includes(k))) {
+            cat = 'Electronics/Games';
+        }
+        // 4. Gifts
+        else if (['etsy', 'flower', 'gift', 'hallmark', 'party city', 'present'].some(k => lowerDesc.includes(k))) {
+            cat = 'Gifts';
+        }
+        // 5. Dining
+        else if (['restaurant', 'cafe', 'coffee', 'starbucks', 'dunkin', 'mcdonalds', 'chick-fil-a', 'burger', 'taco', 'chipotle', 'pizza', 'eats', 'doordash', 'grubhub', 'uber eats', 'grill', 'bistro', 'steak', 'bar', 'dominos', 'bagel', 'ny bagel', 'dd/br', 'kfc', 'popeyes', 'wendy', 'sonic', 'subway', 'jersey mike', 'panera', 'sushi', 'diner'].some(k => lowerDesc.includes(k))) {
+            cat = 'Dining';
+        } 
+        // 6. Groceries
+        else if (['grocery', 'market', 'kroger', 'whole foods', 'trader joe', 'publix', 'heb', 'harris teeter', 'wegmans', 'aldi', 'lidl', 'walmart', 'target', 'food lion', 'safeway', 'bj\'s', 'wholesale', 'sam\'s club', 'samsclub', 'sams club', 'costco', 'meijer', 'walgreens', 'cvs'].some(k => lowerDesc.includes(k))) {
+            cat = 'Groceries';
+        }
+        // 7. General Fun (Legacy fallback)
+        else if (['amc', 'regal', 'cinema', 'movie', 'ticket', 'stubhub', 'seatgeek', 'eventbrite', 'golf', 'bowling', 'entertainment', 'hobby', 'toy', 'lego', 'party', 'club', 'vape', 'smoke', 'dispensary'].some(k => lowerDesc.includes(k))) {
+            cat = 'For Fun';
+        }
+        // 8. Rent
+        else if (lowerDesc.includes('flex finance') || lowerDesc.includes('getflex.com') || ['rent', 'lease', 'apartment', 'property'].some(k => lowerDesc.includes(k))) {
+             cat = 'Rent';
+        }
+        // 9. Bills
+        else if (['youtube', 'google', 'disney', 'hulu', 'netflix', 'spotify', 'apple', 'insurance', 'utilities', 'electric', 'water', 'internet', 'spectrum', 'att', 'verizon'].some(k => lowerDesc.includes(k))) {
+            cat = 'Bills';
+        }
+        // 10. Debt
+        else if (['loan', 'payment', 'credit card', 'chase', 'amex', 'citi', 'discover', 'capital one', 'synchrony', 'affirm'].some(k => lowerDesc.includes(k))) {
+            cat = 'Debt';
+        }
+        // 11. Income
+        else if (['payroll', 'deposit', 'salary', 'elevate'].some(k => lowerDesc.includes(k))) {
+            cat = 'Income';
+        }
+        // 12. P2P
+        else if (['venmo', 'zelle', 'cash app', 'paypal'].some(k => lowerDesc.includes(k))) {
+            cat = amount > 0 ? 'Income' : 'Other'; 
         }
 
         parsedTxs.push({
@@ -416,14 +412,8 @@ const App: React.FC = () => {
         <div className="max-w-lg mx-auto">
           {activeTab === 'dashboard' && <DashboardView data={data} onSwitchTab={setActiveTab} onOpenTxModal={() => { setEditingTx(null); setIsTxModalOpen(true); }} />}
           
-          {/* --- NEW SECTIONS --- */}
-          {(activeTab as any) === 'bills_today' && 
-             <DueBillsView data={data} mode="today" onBack={() => setActiveTab('dashboard')} />
-          }
-          {(activeTab as any) === 'bills_week' && 
-             <DueBillsView data={data} mode="week" onBack={() => setActiveTab('dashboard')} />
-          }
-          {/* -------------------- */}
+          {(activeTab as any) === 'bills_today' && <DueBillsView data={data} mode="today" onBack={() => setActiveTab('dashboard')} />}
+          {(activeTab as any) === 'bills_week' && <DueBillsView data={data} mode="week" onBack={() => setActiveTab('dashboard')} />}
 
           {activeTab === 'calendar' && 
             <CalendarView 
@@ -447,6 +437,16 @@ const App: React.FC = () => {
           
           {activeTab === 'debt' && <DebtView />}
           
+          {/* NEW CATEGORIES VIEW */}
+          {(activeTab as any) === 'categories' && 
+             <CategoriesView 
+                data={data} 
+                monthOffset={monthOffset} 
+                setMonthOffset={setMonthOffset}
+                onBack={() => setActiveTab('dashboard')} 
+             />
+          }
+
           {activeTab === 'transactions' && 
             <TransactionsView 
                 data={data} 
@@ -486,7 +486,18 @@ const App: React.FC = () => {
                <div className="grid grid-cols-2 gap-4">
                   <input name="amt" type="number" step="0.01" placeholder="Amount" required defaultValue={editingTx?.a || ''} className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-blue-500" />
                   <select name="cat" defaultValue={editingTx?.c || 'Dining'} className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-blue-500">
-                    <option>Dining</option><option>Groceries</option><option>For Fun</option><option>Rent</option><option>Bills</option><option>Debt</option><option>Income</option><option>Other</option>
+                    <option>Dining</option>
+                    <option>Groceries</option>
+                    <option>Gas</option>
+                    <option>Clothes</option>
+                    <option>Electronics/Games</option>
+                    <option>Gifts</option>
+                    <option>For Fun</option>
+                    <option>Rent</option>
+                    <option>Bills</option>
+                    <option>Debt</option>
+                    <option>Income</option>
+                    <option>Other</option>
                   </select>
                </div>
                <div className="flex gap-2 pt-2">
@@ -540,7 +551,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Import Conflict Modal */}
+      {/* Import Conflict Modal - kept same */}
       {isImportModalOpen && importConflicts.length > 0 && (
          <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
            <div className="bg-[#171717] border border-[#262626] rounded-3xl w-full max-w-lg p-6 flex flex-col max-h-[85vh] shadow-2xl">
@@ -557,7 +568,6 @@ const App: React.FC = () => {
                   <button onClick={() => { setIsImportModalOpen(false); setImportQueue([]); }} className="text-neutral-500 hover:text-white"><X /></button>
               </div>
 
-              {/* Bulk Actions */}
               <div className="flex gap-2 mb-4 pb-4 border-b border-neutral-800">
                   <button onClick={() => resolveAll('keep_old')} className="flex-1 py-2 text-xs font-bold text-neutral-400 bg-neutral-900 rounded-lg hover:bg-neutral-800 border border-neutral-700">
                       Keep All Originals
@@ -571,16 +581,12 @@ const App: React.FC = () => {
                   {importConflicts.map((conflict, idx) => (
                       <div key={idx} className="bg-neutral-950 p-4 rounded-xl border border-neutral-800">
                           <div className="grid grid-cols-[1fr,auto,1fr] gap-2 items-center mb-4">
-                              {/* Existing */}
                               <div className="text-left opacity-70">
                                   <p className="text-[10px] font-bold text-neutral-500 uppercase">Existing</p>
                                   <p className="text-xs text-white font-medium truncate">{conflict.existingTx.t}</p>
                                   <p className="text-xs text-neutral-400 font-mono">{conflict.existingTx.d}</p>
                               </div>
-                              
                               <div className="text-neutral-600"><ArrowRight size={16} /></div>
-
-                              {/* New */}
                               <div className="text-right">
                                   <p className="text-[10px] font-bold text-emerald-500 uppercase">New Import</p>
                                   <p className="text-xs text-white font-medium truncate">{conflict.newTx.t}</p>
