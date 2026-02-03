@@ -130,7 +130,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
             {categories.map((cat) => {
                 const config = getCategoryConfig(cat.name);
                 
-                // DEBT MANAGER RING DATA LOGIC
+                // Pie Data for the Ring
                 const pieData = [
                     { value: cat.percent },
                     { value: Math.max(0, 100 - cat.percent) }
@@ -150,7 +150,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
                              <p className="text-2xl font-black text-white pl-1">${cat.value.toFixed(0)}</p>
                         </div>
 
-                        {/* RIGHT: The Ring (Recharts Implementation from Debt Manager) */}
+                        {/* RIGHT: The Ring (Recharts Implementation) */}
                         <div className="relative w-16 h-16 shrink-0">
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
@@ -165,7 +165,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
                                         paddingAngle={0}
                                         dataKey="value"
                                         stroke="none"
-                                        isAnimationActive={false}
+                                        isAnimationActive={true} // <--- ANIMATION BACK ON
                                     >
                                         <Cell fill={config.color} />
                                         <Cell fill="#262626" />
@@ -191,10 +191,12 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
                 <TrendingUp size={16} className="text-emerald-400"/> 3-Month Trend
             </h3>
             <div className="h-48 w-full">
+                {/* outline-none removes the white border on focus */}
                 <ResponsiveContainer width="100%" height="100%" className="outline-none">
                     <BarChart data={trendData}>
                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#666' }} />
-                        {/* FIXED: Added wrapperStyle={{ outline: 'none' }} to kill the focus border */}
+                        {/* cursor={false} removes the gray hover block */}
+                        {/* wrapperStyle={{ outline: 'none' }} removes the white selection border */}
                         <Tooltip 
                             cursor={false} 
                             contentStyle={{ backgroundColor: '#000', borderRadius: '8px', border: 'none' }}
