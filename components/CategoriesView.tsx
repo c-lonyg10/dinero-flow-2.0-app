@@ -58,10 +58,8 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
           .sort((a, b) => b.value - a.value);
   }, [monthTx]);
 
-  // 2. Trend Data (DYNAMIC: Based on selected monthOffset)
-  // We want: [2 months ago, 1 month ago, Selected Month]
+  // 2. Trend Data
   const trendData = [2, 1, 0].map(subOffset => {
-      // Logic: If monthOffset is 1 (Jan), we want offsets 3 (Nov), 2 (Dec), 1 (Jan)
       const totalOffset = monthOffset + subOffset;
       
       const d = new Date();
@@ -85,6 +83,11 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
           Fun: fun
       };
   });
+
+  // 3. Calculate "Discretionary Spend" (Everything that isn't Rent, Bills, or Debt)
+  const discretionarySpend = monthTx
+    .filter(t => t.a < 0 && !['Rent', 'Bills', 'Debt', 'Income', 'Other'].includes(t.c))
+    .reduce((sum, t) => sum + Math.abs(t.a), 0);
 
   // Colors & Icons
   const getCategoryConfig = (cat: string) => {
@@ -133,6 +136,12 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
                 </select>
                 <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
             </div>
+        </div>
+
+        {/* DISCRETIONARY SPEND LABEL (Restored) */}
+        <div className="text-center pb-2 animate-fade-in">
+            <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1">Discretionary Spend</p>
+            <p className="text-4xl font-black text-white">${discretionarySpend.toFixed(0)}</p>
         </div>
 
         {/* 1 COLUMN WIDE LIST (Rectangular Cards) */}
@@ -195,18 +204,19 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
             )}
         </div>
 
-        {/* 3-MONTH TREND GRAPH (FIXED: Dynamic based on selection) */}
+        {/* 3-MONTH TREND GRAPH */}
         <div className="bg-[#171717] border border-[#262626] p-5 rounded-3xl shadow-lg">
             <h3 className="font-bold text-white mb-4 text-sm flex items-center gap-2">
                 <TrendingUp size={16} className="text-emerald-400"/> 3-Month Trend
             </h3>
             <div className="h-48 w-full">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" className="outline-none">
                     <BarChart data={trendData}>
                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#666' }} />
                         <Tooltip 
                             cursor={false} 
                             contentStyle={{ backgroundColor: '#000', borderRadius: '8px', border: 'none' }}
+                            wrapperStyle={{ outline: 'none' }} 
                         />
                         <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
                         <Bar dataKey="Income" fill="#10b981" radius={[4, 4, 0, 0]} />
