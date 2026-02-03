@@ -58,10 +58,14 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
           .sort((a, b) => b.value - a.value);
   }, [monthTx]);
 
-  // 2. Trend Data
-  const trendData = [2, 1, 0].map(offset => {
+  // 2. Trend Data (DYNAMIC: Based on selected monthOffset)
+  // We want: [2 months ago, 1 month ago, Selected Month]
+  const trendData = [2, 1, 0].map(subOffset => {
+      // Logic: If monthOffset is 1 (Jan), we want offsets 3 (Nov), 2 (Dec), 1 (Jan)
+      const totalOffset = monthOffset + subOffset;
+      
       const d = new Date();
-      d.setMonth(d.getMonth() - offset);
+      d.setMonth(d.getMonth() - totalOffset);
       const m = d.getMonth();
       const y = d.getFullYear();
       
@@ -102,6 +106,12 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
 
   return (
     <div className="space-y-6 pb-24 animate-fade-in min-h-[100dvh] flex flex-col">
+        {/* CSS Hack to kill the white border on Touch */}
+        <style>{`
+            .recharts-wrapper { outline: none !important; }
+            *:focus { outline: none !important; }
+        `}</style>
+
         {/* Header with Dropdown */}
         <div className="flex justify-between items-center pt-4 px-1 shrink-0">
             <div className="flex items-center gap-2">
@@ -165,7 +175,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
                                         paddingAngle={0}
                                         dataKey="value"
                                         stroke="none"
-                                        isAnimationActive={true} // <--- ANIMATION BACK ON
+                                        isAnimationActive={true}
                                     >
                                         <Cell fill={config.color} />
                                         <Cell fill="#262626" />
@@ -185,22 +195,18 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
             )}
         </div>
 
-        {/* 3-MONTH TREND GRAPH */}
+        {/* 3-MONTH TREND GRAPH (FIXED: Dynamic based on selection) */}
         <div className="bg-[#171717] border border-[#262626] p-5 rounded-3xl shadow-lg">
             <h3 className="font-bold text-white mb-4 text-sm flex items-center gap-2">
                 <TrendingUp size={16} className="text-emerald-400"/> 3-Month Trend
             </h3>
             <div className="h-48 w-full">
-                {/* outline-none removes the white border on focus */}
-                <ResponsiveContainer width="100%" height="100%" className="outline-none">
+                <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={trendData}>
                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#666' }} />
-                        {/* cursor={false} removes the gray hover block */}
-                        {/* wrapperStyle={{ outline: 'none' }} removes the white selection border */}
                         <Tooltip 
                             cursor={false} 
                             contentStyle={{ backgroundColor: '#000', borderRadius: '8px', border: 'none' }}
-                            wrapperStyle={{ outline: 'none' }} 
                         />
                         <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
                         <Bar dataKey="Income" fill="#10b981" radius={[4, 4, 0, 0]} />
