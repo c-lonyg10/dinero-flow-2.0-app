@@ -194,7 +194,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={trendData}>
                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#666' }} />
-                        <Tooltip cursor={{fill: '#262626'}} contentStyle={{ backgroundColor: '#000', borderRadius: '8px', border: 'none' }} />
+                        <Tooltip cursor={false} contentStyle={{ backgroundColor: '#000', borderRadius: '8px', border: 'none' }} />
                         <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
                         <Bar dataKey="Income" fill="#10b981" radius={[4, 4, 0, 0]} />
                         <Bar dataKey="Fixed" fill="#ef4444" radius={[4, 4, 0, 0]} />
