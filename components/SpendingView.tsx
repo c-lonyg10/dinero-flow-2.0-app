@@ -109,7 +109,7 @@ const SpendingView: React.FC<SpendingViewProps> = ({ data, monthOffset, setMonth
     .slice(0, 10);
 
   // Month Dropdown Options
-  const monthOptions = [-1, 0, 1, 2, 3].map(i => {
+  const monthOptions = [-1, 0, 1, 2, 3, 4, 5].map(i => {
       const d = new Date();
       d.setMonth(d.getMonth() - i);
       return {
