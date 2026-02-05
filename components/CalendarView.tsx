@@ -89,9 +89,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   };
 
   return (
-    <div className="h-[100dvh] flex flex-col box-border pb-24 overflow-hidden">
-      {/* Header (Fixed) */}
-      <div className="sticky top-0 z-50 bg-black pt-4 px-1 pb-4 flex justify-between items-center border-b border-neutral-900">
+    <div className="min-h-[100dvh] pb-24">
+      {/* Header */}
+      <div className="pt-4 px-1 pb-4 flex justify-between items-center bg-black sticky top-0 z-50">
         <div className="relative z-20">
              <select 
                 value={monthOffset}
@@ -110,8 +110,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({
         </button>
       </div>
 
-      {/* SCROLLABLE CONTENT AREA */}
-      <div className="flex-1 overflow-y-auto no-scrollbar space-y-8 pt-4 pb-10" style={{ WebkitOverflowScrolling: 'touch' }}>
+      {/* CONTENT */}
+      <div className="space-y-8 px-1 pb-10">
           
           {/* 1. CALENDAR GRID */}
           <div className="bg-[#171717] rounded-3xl overflow-hidden p-1 shadow-xl border border-[#262626]">
