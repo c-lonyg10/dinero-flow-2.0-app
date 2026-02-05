@@ -91,7 +91,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   return (
     <div className="h-[100dvh] flex flex-col box-border space-y-4 pb-24 overflow-hidden">
       {/* Header (Fixed) */}
-      <div className="shrink-0 pt-4 px-1 flex justify-between items-center">
+<div className="sticky top-0 z-50 bg-black pt-4 px-1 pb-2 flex justify-between items-center">
         <div className="relative z-20">
              <select 
                 value={monthOffset}
