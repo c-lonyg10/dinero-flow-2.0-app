@@ -27,7 +27,7 @@ export interface Transaction {
     transactions: Transaction[];
   }
   
-  export type TabType = 'dashboard' | 'calendar' | 'rent' | 'spending' | 'debt' | 'transactions' | 'settings' | 'fun';
+  export type TabType = 'dashboard' | 'calendar' | 'rent' | 'spending' | 'debt' | 'transactions' | 'settings' | 'fun' | 'dreamIsland';
   
   export const INITIAL_DATA: AppData = {
     budget: { avgIncome: 1327.36, annaContrib: 300.00, rentTotal: 0, startingBalance: 0 },

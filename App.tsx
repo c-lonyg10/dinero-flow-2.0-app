@@ -7,6 +7,7 @@ import DebtView from './components/DebtView';
 import TransactionsView from './components/TransactionsView';
 import SettingsView from './components/SettingsView';
 import FunView from './components/FunView';
+import DreamIslandView from './components/DreamIslandView';
 import CategoriesView from './components/CategoriesView';
 import YearView from './components/YearView';
 import DueBillsView from './components/DueBillsView';
@@ -38,10 +39,34 @@ const App: React.FC = () => {
   // Logo Interaction State
   const [logoText, setLogoText] = useState("CRC");
   const logoTimeoutRef = useRef<number | null>(null);
+  const logoClickCountRef = useRef(0);
+  const logoClickTimeoutRef = useRef<number | null>(null);
   const emojiIndexRef = useRef(0);
   const moneyEmojis = ["💵", "💸", "🤑", "💰", "💲"];
 
   const handleLogoClick = () => {
+    // Increment click count
+    logoClickCountRef.current += 1;
+
+    // Clear existing timeout for click counter
+    if (logoClickTimeoutRef.current) {
+      clearTimeout(logoClickTimeoutRef.current);
+    }
+
+    // Check for double tap
+    if (logoClickCountRef.current === 2) {
+      // DOUBLE TAP - Open Dream Island
+      logoClickCountRef.current = 0;
+      setActiveTab('dreamIsland');
+      setLogoText("CRC");
+      if (logoTimeoutRef.current) {
+        clearTimeout(logoTimeoutRef.current);
+        logoTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    // Single tap - Cycle emoji
     if (logoTimeoutRef.current) {
       clearTimeout(logoTimeoutRef.current);
     }
@@ -55,6 +80,11 @@ const App: React.FC = () => {
       setLogoText("CRC");
       logoTimeoutRef.current = null;
     }, 1500);
+
+    // Reset click counter after 500ms
+    logoClickTimeoutRef.current = window.setTimeout(() => {
+      logoClickCountRef.current = 0;
+    }, 500);
   };
 
   // Load Data
@@ -563,6 +593,13 @@ const App: React.FC = () => {
                 onExport={handleExportData}
                 onRestore={handleRestoreData}
                 onArchive={handleArchiveData} // NEW
+            />
+          }
+
+          {activeTab === 'dreamIsland' && 
+            <DreamIslandView 
+              data={data}
+              onExit={() => setActiveTab('dashboard')}
             />
           }
         </div>
