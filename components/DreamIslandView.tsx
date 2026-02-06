@@ -16,6 +16,7 @@ interface HypotheticalExpense {
 
 const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
   const [includeFixedBills, setIncludeFixedBills] = useState(true);
+  const [includeRent, setIncludeRent] = useState(true);
   const [includeFoodAnalysis, setIncludeFoodAnalysis] = useState(true);
   const [showForecasted, setShowForecasted] = useState(true);
   const [hypotheticals, setHypotheticals] = useState<HypotheticalExpense[]>([]);
@@ -59,12 +60,28 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
   const groceriesTotal = monthTx.filter(isGroceries).reduce((s, t) => s + Math.abs(t.a), 0);
   const foodTotal = diningTotal + groceriesTotal;
 
-  // Calculate fixed bills total
-  const fixedBillsTotal = data.bills.reduce((sum, bill) => sum + bill.amount, 0);
+  // Split bills into rent and non-rent
+  const rentBills = data.bills.filter(b => b.id === 1 || b.id === 9);
+  const nonRentBills = data.bills.filter(b => b.id !== 1 && b.id !== 9);
+  
+  const rentTotal = rentBills.reduce((sum, bill) => sum + bill.amount, 0);
+  const fixedBillsTotal = nonRentBills.reduce((sum, bill) => sum + bill.amount, 0);
 
-  // Calculate monthly income and expenses
-  const monthlyIncome = data.budget.avgIncome + data.budget.annaContrib;
-  const monthlyExpenses = fixedBillsTotal;
+  // Calculate number of paydays in current month
+  const refDate = new Date(2026, 0, 9); // Jan 9, 2026
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  let paydayCount = 0;
+  
+  for (let day = 1; day <= daysInMonth; day++) {
+    const current = new Date(currentYear, currentMonth, day);
+    const diffDays = Math.ceil((current.getTime() - refDate.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays % 14 === 0) {
+      paydayCount++;
+    }
+  }
+
+  // Calculate monthly income (number of paychecks × paycheck amount)
+  const monthlyIncome = paydayCount * data.budget.avgIncome;
 
   // Starting balance
   const startingBalance = data.budget.startingBalance;
@@ -72,6 +89,7 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
   // Calculate current reality totals
   let currentMonthlyOut = 0;
   if (includeFixedBills) currentMonthlyOut += fixedBillsTotal;
+  if (includeRent) currentMonthlyOut += rentTotal;
   if (includeFoodAnalysis) currentMonthlyOut += foodTotal;
 
   const currentNetFlow = monthlyIncome - currentMonthlyOut;
@@ -116,6 +134,7 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
   const handleReset = () => {
     setHypotheticals([]);
     setIncludeFixedBills(true);
+    setIncludeRent(true);
     setIncludeFoodAnalysis(true);
     setShowForecasted(true);
   };
@@ -200,7 +219,7 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
             </div>
             <div className="h-px bg-neutral-800"></div>
             <div className="flex justify-between items-center text-sm">
-              <span className="text-emerald-400 font-medium">Monthly In</span>
+              <span className="text-emerald-400 font-medium">Monthly In ({paydayCount} paychecks)</span>
               <span className="text-emerald-400 font-bold">${monthlyIncome.toFixed(2)}</span>
             </div>
             <div className="flex justify-between items-center text-sm">
@@ -214,22 +233,22 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
         <div className="space-y-3">
           <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider px-2">Include in Calculations</h3>
           <ArcadeButton 
-            label="Fixed Bills"
+            label="Fixed Bills/Subs"
             isOn={includeFixedBills}
             onClick={() => setIncludeFixedBills(!includeFixedBills)}
             colorScheme="green"
+          />
+          <ArcadeButton 
+            label="Rent"
+            isOn={includeRent}
+            onClick={() => setIncludeRent(!includeRent)}
+            colorScheme="purple"
           />
           <ArcadeButton 
             label="Food Analysis"
             isOn={includeFoodAnalysis}
             onClick={() => setIncludeFoodAnalysis(!includeFoodAnalysis)}
             colorScheme="orange"
-          />
-          <ArcadeButton 
-            label="Show Forecasted Expenses"
-            isOn={showForecasted}
-            onClick={() => setShowForecasted(!showForecasted)}
-            colorScheme="purple"
           />
         </div>
 
