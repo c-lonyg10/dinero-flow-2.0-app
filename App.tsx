@@ -13,6 +13,10 @@ import YearView from './components/YearView';
 import DueBillsView from './components/DueBillsView';
 import { AppData, INITIAL_DATA, TabType, Transaction, Bill } from './types';
 import { X, Check, Trash2, AlertTriangle, ArrowRight } from 'lucide-react';
+import { supabase } from './supabaseClient'
+import Auth from './Auth'
+import type { User } from '@supabase/supabase-js'
+import { loadDataFromSupabase, saveDataToSupabase, migrateLocalStorageToSupabase } from './supabaseHelpers'
 
 interface ImportConflict {
   newTx: Transaction;
@@ -20,6 +24,9 @@ interface ImportConflict {
 }
 
 const App: React.FC = () => {
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+
   const [data, setData] = useState<AppData>(INITIAL_DATA);
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [monthOffset, setMonthOffset] = useState(0); 
@@ -43,6 +50,94 @@ const App: React.FC = () => {
   const logoClickTimeoutRef = useRef<number | null>(null);
   const emojiIndexRef = useRef(0);
   const moneyEmojis = ["💵", "💸", "🤑", "💰", "💲"];
+
+  // Ref for Supabase save/load logic
+  const isInitialLoadRef = useRef(true);
+  const hasLoadedRef = useRef(false);
+
+  // Check if user is logged in
+  useEffect(() => {
+    // Get current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      setLoading(false)
+    })
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  // Reset to dashboard when user logs in
+useEffect(() => {
+  if (user) {
+    setActiveTab('dashboard');
+  }
+}, [user]);
+
+    // Load data from Supabase when user logs in
+useEffect(() => {
+  if (!user) return;
+
+  const loadData = async () => {
+    // First, try to migrate localStorage data (one-time)
+    await migrateLocalStorageToSupabase(user.id);
+
+    // Then load data from Supabase
+    const supabaseData = await loadDataFromSupabase(user.id);
+    
+    if (supabaseData) {
+      setData(supabaseData);
+      hasLoadedRef.current = true;
+      console.log('✅ Data loaded from Supabase');
+    } else {
+      hasLoadedRef.current = true;
+      console.log('📝 No data in Supabase yet, using defaults');
+    }
+  };
+
+  loadData();
+}, [user]);
+
+// Save data to Supabase whenever it changes (but skip initial load)
+useEffect(() => {
+  if (!user) return;
+  
+  // Don't save until we've loaded data at least once
+  if (!hasLoadedRef.current) {
+    return;
+  }
+  
+  // Skip the very first save after loading
+  if (isInitialLoadRef.current) {
+    isInitialLoadRef.current = false;
+    return;
+  }
+
+  const saveData = async () => {
+    await saveDataToSupabase(user.id, data);
+    console.log('💾 Data saved to Supabase');
+  };
+
+  saveData();
+}, [data, user]);
+
+  // Show loading spinner while checking auth (OUTSIDE useEffect!)
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#171717] flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    )
+  }
+
+  // Show login screen if not authenticated (OUTSIDE useEffect!)
+  if (!user) {
+    return <Auth />
+  }
 
   const handleLogoClick = () => {
     // Increment click count
@@ -87,24 +182,6 @@ const App: React.FC = () => {
     }, 500);
   };
 
-  // Load Data
-  useEffect(() => {
-    const saved = localStorage.getItem('moneyflow_data_v35');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setData(parsed);
-      } catch (e) {
-        console.error("Failed to load data", e);
-      }
-    }
-  }, []);
-
-  // Save Data
-  useEffect(() => {
-    localStorage.setItem('moneyflow_data_v35', JSON.stringify(data));
-  }, [data]);
-
   // Actions
   const handleUpdateRent = (val: number) => {
     setData(prev => ({ ...prev, budget: { ...prev.budget, rentTotal: val } }));
@@ -113,6 +190,15 @@ const App: React.FC = () => {
   const handleUpdateBudget = (key: string, val: number) => {
     setData(prev => ({ ...prev, budget: { ...prev.budget, [key]: val } }));
   };
+
+  const handleLogout = async () => {
+  try {
+    await supabase.auth.signOut();
+    // Auth state will update automatically via onAuthStateChange
+  } catch (error) {
+    console.error('Error logging out:', error);
+  }
+};
 
   const handleReset = () => {
     if(confirm("Reset all data?")) {
@@ -589,10 +675,10 @@ const App: React.FC = () => {
                 onUpdateBudget={handleUpdateBudget} 
                 onReset={handleReset} 
                 onImport={handleImportCSV} 
-                // WIRED UP ALL 3 FUNCTIONS:
                 onExport={handleExportData}
                 onRestore={handleRestoreData}
-                onArchive={handleArchiveData} // NEW
+                onArchive={handleArchiveData}
+                onLogout={handleLogout}
             />
           }
 

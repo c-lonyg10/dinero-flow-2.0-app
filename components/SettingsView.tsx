@@ -10,6 +10,7 @@ interface SettingsViewProps {
   onExport: () => void;
   onRestore: (file: File) => void;
   onArchive: () => void;
+  onLogout: () => void;
 }
 
 const SettingsView: React.FC<SettingsViewProps> = ({ 
@@ -19,7 +20,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({
     onImport, 
     onExport, 
     onRestore, 
-    onArchive 
+    onArchive,
+    onLogout, 
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const restoreInputRef = useRef<HTMLInputElement>(null);
@@ -130,6 +132,14 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                  </div>
             </div>
         </div>
+
+        {/* Logout Button */}
+        <button
+            onClick={onLogout}
+            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+        >
+            🚪 Logout
+        </button>
 
         {/* FACTORY RESET */}
         <button 
