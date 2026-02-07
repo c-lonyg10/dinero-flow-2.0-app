@@ -12,10 +12,10 @@ interface HypotheticalExpense {
   name: string;
   amount: number;
   type: 'one-time' | 'recurring' | 'payment-plan';
+  startDate?: string; // YYYY-MM-DD - used for one-time expenses and payment plans
   // Payment plan specific fields
   totalAmount?: number;
   numberOfPayments?: number;
-  startDate?: string; // YYYY-MM-DD
 }
 
 const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
@@ -27,6 +27,11 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
   const [isAddingExpense, setIsAddingExpense] = useState(false);
   const [expenseType, setExpenseType] = useState<'one-time' | 'recurring' | 'payment-plan'>('one-time');
   const [forecastMonth, setForecastMonth] = useState(0); // 0, 1, or 2 for 3-month forecast
+  
+  // Payment plan auto-calculation
+  const [paymentPlanTotal, setPaymentPlanTotal] = useState<number>(0);
+  const [paymentPlanCount, setPaymentPlanCount] = useState<number>(0);
+  const [calculatedPayment, setCalculatedPayment] = useState<number>(0);
 
   // Calculate Current Reality
   const currentDate = new Date();
@@ -124,6 +129,19 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
     return { count: paymentsInMonth.length, paymentNumbers: paymentsInMonth };
   };
 
+  // Helper function to check if one-time expense falls in a specific month
+  const isOneTimeExpenseInMonth = (expense: HypotheticalExpense, year: number, month: number): boolean => {
+    if (expense.type !== 'one-time') return false;
+    
+    // If no date set, default to first forecast month (current month)
+    if (!expense.startDate) {
+      return year === currentYear && month === currentMonth;
+    }
+    
+    const expenseDate = new Date(expense.startDate);
+    return expenseDate.getFullYear() === year && expenseDate.getMonth() === month;
+  };
+
   // Calculate 3-month forecast
   const forecastMonths = [];
   for (let i = 0; i < 3; i++) {
@@ -142,7 +160,9 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
     if (includeFoodAnalysis) expenses += foodTotal;
     
     // Calculate hypotheticals for this month
-    const oneTimeTotal = i === 0 ? hypotheticals.filter(h => h.type === 'one-time').reduce((sum, h) => sum + h.amount, 0) : 0;
+    // One-time expenses now check their date to see if they fall in this month
+    const oneTimeExpensesInMonth = hypotheticals.filter(h => isOneTimeExpenseInMonth(h, forecastYear, forecastMonthNum));
+    const oneTimeTotal = oneTimeExpensesInMonth.reduce((sum, h) => sum + h.amount, 0);
     const recurringTotal = hypotheticals.filter(h => h.type === 'recurring').reduce((sum, h) => sum + h.amount, 0);
     
     // Calculate payment plan total for this month
@@ -169,6 +189,7 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
       income,
       expenses,
       oneTimeTotal,
+      oneTimeExpensesInMonth,
       recurringTotal,
       paymentPlanTotal,
       paymentPlanDetails,
@@ -192,6 +213,29 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
   const currentNetFlow = monthlyIncome - currentMonthlyOut;
   const currentBalance = startingBalance + currentNetFlow;
 
+  // Auto-calculate payment amount for payment plans
+  const handlePaymentPlanTotalChange = (value: number) => {
+    setPaymentPlanTotal(value);
+    if (paymentPlanCount > 0) {
+      setCalculatedPayment(value / paymentPlanCount);
+    }
+  };
+
+  const handlePaymentPlanCountChange = (value: number) => {
+    setPaymentPlanCount(value);
+    if (value > 0 && paymentPlanTotal > 0) {
+      setCalculatedPayment(paymentPlanTotal / value);
+    }
+  };
+
+  // Reset payment plan calculation when modal closes
+  const handleCloseModal = () => {
+    setIsAddingExpense(false);
+    setPaymentPlanTotal(0);
+    setPaymentPlanCount(0);
+    setCalculatedPayment(0);
+  };
+
   // Add hypothetical expense
   const handleAddExpense = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -207,6 +251,14 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
         type: expenseType
       };
 
+      // Add date for one-time expenses (optional)
+      if (expenseType === 'one-time') {
+        const startDate = formData.get('startDate') as string;
+        if (startDate) {
+          newExpense.startDate = startDate;
+        }
+      }
+
       // Add payment plan specific fields
       if (expenseType === 'payment-plan') {
         newExpense.totalAmount = parseFloat(formData.get('totalAmount') as string) || 0;
@@ -215,7 +267,7 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
       }
 
       setHypotheticals([...hypotheticals, newExpense]);
-      setIsAddingExpense(false);
+      handleCloseModal();
     }
   };
 
@@ -505,7 +557,7 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
             <div className="mb-4">
               <h4 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Hypotheticals</h4>
               <div className="bg-neutral-900 rounded-xl p-3 space-y-2">
-                {forecastMonth === 0 && hypotheticals.filter(h => h.type === 'one-time').map(h => (
+                {currentForecast.oneTimeExpensesInMonth && currentForecast.oneTimeExpensesInMonth.map(h => (
                   <div key={h.id} className="flex justify-between items-center text-sm">
                     <span className="text-purple-400">{h.name}</span>
                     <span className="font-bold text-white">${h.amount.toFixed(2)}</span>
@@ -563,7 +615,7 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
               <h3 className="font-bold text-lg text-white">
                 Add {expenseType === 'one-time' ? 'One-Time' : expenseType === 'recurring' ? 'Recurring' : 'Payment Plan'} Expense
               </h3>
-              <button onClick={() => setIsAddingExpense(false)} className="text-neutral-500 hover:text-white">
+              <button onClick={handleCloseModal} className="text-neutral-500 hover:text-white">
                 <X />
               </button>
             </div>
@@ -579,25 +631,14 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
               {expenseType === 'payment-plan' ? (
                 <>
                   <div>
-                    <label className="block text-xs text-neutral-500 mb-2 font-bold uppercase">Total Amount (for reference)</label>
+                    <label className="block text-xs text-neutral-500 mb-2 font-bold uppercase">Total Amount</label>
                     <input
                       name="totalAmount"
                       type="number"
                       step="0.01"
                       placeholder="Total amount (e.g., 400)"
                       required
-                      className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-xs text-neutral-500 mb-2 font-bold uppercase">Payment Amount</label>
-                    <input
-                      name="amount"
-                      type="number"
-                      step="0.01"
-                      placeholder="Amount per payment (e.g., 67)"
-                      required
+                      onChange={(e) => handlePaymentPlanTotalChange(parseFloat(e.target.value) || 0)}
                       className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-blue-500"
                     />
                   </div>
@@ -607,6 +648,7 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
                     <select
                       name="numberOfPayments"
                       required
+                      onChange={(e) => handlePaymentPlanCountChange(parseInt(e.target.value) || 0)}
                       className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-blue-500 cursor-pointer"
                     >
                       <option value="">Select number of payments</option>
@@ -617,6 +659,23 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
                       <option value="8">8 payments</option>
                       <option value="12">12 payments</option>
                     </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs text-neutral-500 mb-2 font-bold uppercase">Payment Amount (Auto-Calculated)</label>
+                    <input
+                      name="amount"
+                      type="number"
+                      step="0.01"
+                      value={calculatedPayment > 0 ? calculatedPayment.toFixed(2) : ''}
+                      placeholder="Will auto-calculate"
+                      readOnly
+                      required
+                      className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-emerald-400 font-bold focus:outline-none focus:border-blue-500"
+                    />
+                    {calculatedPayment > 0 && (
+                      <p className="text-xs text-emerald-400 mt-1">✓ Calculated: ${calculatedPayment.toFixed(2)} per payment</p>
+                    )}
                   </div>
                   
                   <div>
@@ -635,6 +694,27 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
                     <p className="text-xs text-neutral-400 mt-1">Payments occur every 14 days starting from your selected date.</p>
                   </div>
                 </>
+              ) : expenseType === 'one-time' ? (
+                <>
+                  <input
+                    name="amount"
+                    type="number"
+                    step="0.01"
+                    placeholder="Amount"
+                    required
+                    className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-purple-500"
+                  />
+                  <div>
+                    <label className="block text-xs text-neutral-500 mb-2 font-bold uppercase">Date (Optional)</label>
+                    <input
+                      name="startDate"
+                      type="date"
+                      min={new Date().toISOString().split('T')[0]}
+                      className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-purple-500"
+                    />
+                    <p className="text-xs text-neutral-500 mt-1">Leave blank to default to current month</p>
+                  </div>
+                </>
               ) : (
                 <input
                   name="amount"
@@ -642,7 +722,7 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
                   step="0.01"
                   placeholder="Amount"
                   required
-                  className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-purple-500"
+                  className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-orange-500"
                 />
               )}
               
