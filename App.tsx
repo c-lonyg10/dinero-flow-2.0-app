@@ -226,46 +226,62 @@ useEffect(() => {
   };
 
   // --- ROBUST RESTORE FUNCTION ---
-  const handleRestoreData = (file: File) => {
-      // Safety check for file type
-      if (!file.name.endsWith('.json') && file.type !== 'application/json') {
-          if (!confirm(`The file "${file.name}" doesn't look like a JSON file. Try to restore anyway?`)) return;
-      }
+const handleRestoreData = async (file: File) => {
+    // Safety check for file type
+    if (!file.name.endsWith('.json') && file.type !== 'application/json') {
+        if (!confirm(`The file "${file.name}" doesn't look like a JSON file. Try to restore anyway?`)) return;
+    }
 
-      const reader = new FileReader();
-      
-      reader.onload = (e) => {
-          try {
-              const text = e.target?.result as string;
-              if (!text) throw new Error("File is empty");
-              
-              const parsed = JSON.parse(text);
+    const reader = new FileReader();
+    
+    reader.onload = async (e) => {
+        try {
+            const text = e.target?.result as string;
+            if (!text) throw new Error("File is empty");
+            
+            const parsed = JSON.parse(text);
 
-              // Check if it's our new full backup format or legacy
-              if (parsed.appData) {
-                  // Full Backup
-                  setData(parsed.appData);
-                  if (parsed.debtData) {
-                      localStorage.setItem('moneyflow_debts_v3', JSON.stringify(parsed.debtData));
-                  }
-                  alert("✅ Restore Successful! All data loaded. \n\nPlease refresh the app.");
-              } else {
-                  // Legacy Backup
-                  setData(parsed);
-                  alert("✅ Legacy Restore Successful!");
-              }
-          } catch (err: any) {
-              console.error(err);
-              alert("❌ Restore Failed: " + err.message);
-          }
-      };
-      
-      reader.onerror = () => {
-          alert("❌ Error reading file. Please try again.");
-      };
+            // Check if it's our new full backup format or legacy
+            let restoredData;
+            if (parsed.appData) {
+                // Full Backup
+                restoredData = parsed.appData;
+                if (parsed.debtData) {
+                    localStorage.setItem('moneyflow_debts_v3', JSON.stringify(parsed.debtData));
+                }
+            } else {
+                // Legacy Backup
+                restoredData = parsed;
+            }
 
-      reader.readAsText(file);
-  };
+            // Update state
+            setData(restoredData);
+            
+            // SAVE TO SUPABASE!
+            if (user) {
+                console.log('📤 Saving restored data to Supabase...');
+                const success = await saveDataToSupabase(user.id, restoredData);
+                if (success) {
+                    alert("✅ Restore Successful! Data saved to cloud.\n\nRefreshing...");
+                    window.location.reload();
+                } else {
+                    alert("⚠️ Data restored locally but Supabase save failed. Check console.");
+                }
+            } else {
+                alert("✅ Restore Successful! (Note: Not logged in, so not saved to cloud)");
+            }
+        } catch (err: any) {
+            console.error(err);
+            alert("❌ Restore Failed: " + err.message);
+        }
+    };
+    
+    reader.onerror = () => {
+        alert("❌ Error reading file. Please try again.");
+    };
+
+    reader.readAsText(file);
+};
 
   // --- NEW: ARCHIVE FUNCTION ---
   const handleArchiveData = () => {
