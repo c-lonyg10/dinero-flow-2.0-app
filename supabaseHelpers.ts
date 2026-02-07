@@ -86,7 +86,10 @@ export async function loadDataFromSupabase(userId: string): Promise<AppData | nu
 // Save all data to Supabase
 export async function saveDataToSupabase(userId: string, data: AppData): Promise<boolean> {
   try {
-    // Save budget (upsert = insert or update)
+    console.log('💾 Starting Supabase save for user:', userId);
+    
+    // Save budget (upsert with proper conflict resolution)
+    console.log('📤 Saving budget...');
     const { error: budgetError } = await supabase
       .from('budget')
       .upsert({
@@ -95,70 +98,108 @@ export async function saveDataToSupabase(userId: string, data: AppData): Promise
         avg_income: data.budget.avgIncome,
         updated_at: new Date().toISOString(),
       }, { 
-    onConflict: 'user_id'  // ← ADD THIS LINE - tells it to update if user_id exists
-  })
+        onConflict: 'user_id'
+      })
 
-    if (budgetError) throw budgetError
+    if (budgetError) {
+      console.error('❌ Budget save error:', budgetError);
+      throw budgetError;
+    }
+    console.log('✅ Budget saved');
 
-    // Delete existing bills and insert new ones
-    await supabase.from('bills').delete().eq('user_id', userId)
+    // Delete existing bills first
+    console.log('🗑️ Deleting old bills...');
+    const { error: deleteBillsError } = await supabase
+      .from('bills')
+      .delete()
+      .eq('user_id', userId);
     
+    if (deleteBillsError) {
+      console.error('❌ Error deleting bills:', deleteBillsError);
+      throw deleteBillsError;
+    }
+    
+    // Insert new bills
     if (data.bills.length > 0) {
+      console.log(`📤 Inserting ${data.bills.length} bills...`);
+      
+      const billsToInsert = data.bills.map((bill: Bill) => {
+        const formatted = {
+          user_id: userId,
+          bill_id: Number(bill.id),
+          name: String(bill.name),
+          amount: Number(bill.amount),
+          due_date: Number(bill.day),
+          category: '', // Always empty string for bills
+        };
+        return formatted;
+      });
+
+      console.log('First bill sample:', billsToInsert[0]);
+
       const { error: billsError } = await supabase
         .from('bills')
-        .insert(
-          data.bills.map((bill: Bill) => ({
-            user_id: userId,
-            bill_id: bill.id,
-            name: bill.name,
-            amount: bill.amount,
-            due_date: bill.day, // Maps day to due_date
-            category: '', // Empty string as default
-          }))
-        )
+        .insert(billsToInsert);
 
-      if (billsError) throw billsError
+      if (billsError) {
+        console.error('❌ Bills insert error:', billsError);
+        console.error('Error details:', JSON.stringify(billsError, null, 2));
+        throw billsError;
+      }
+      console.log('✅ Bills inserted');
     }
 
-    // Delete existing transactions and insert new ones
-const { error: deleteError } = await supabase
-  .from('transactions')
-  .delete()
-  .eq('user_id', userId);
-
-if (deleteError) {
-  console.error('❌ Error deleting transactions:', deleteError);
-  throw deleteError;
-}
-
-if (data.transactions.length > 0) {
-  const transactionsToInsert = data.transactions.map((tx: Transaction) => ({
-    user_id: userId,
-    transaction_id: tx.id.toString(),
-    description: tx.t,
-    amount: tx.a,
-    date: tx.d,
-    category: tx.c,
-  }));
-
-  console.log('📤 Attempting to insert transactions:', transactionsToInsert);
-
-  const { error: transactionsError } = await supabase
-    .from('transactions')
-    .insert(transactionsToInsert);
-
-  if (transactionsError) {
-    console.error('❌ Error inserting transactions:', transactionsError);
-    throw transactionsError;
-  }
-
-  console.log('✅ Transactions inserted successfully');
-}
-
-    // Delete existing hypotheticals and insert new ones
-    await supabase.from('dream_island_hypotheticals').delete().eq('user_id', userId)
+    // Delete existing transactions
+    console.log('🗑️ Deleting old transactions...');
+    const { error: deleteTxError } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('user_id', userId);
     
+    if (deleteTxError) {
+      console.error('❌ Error deleting transactions:', deleteTxError);
+      throw deleteTxError;
+    }
+    
+    // Insert new transactions
+    if (data.transactions.length > 0) {
+      console.log(`📤 Inserting ${data.transactions.length} transactions...`);
+      
+      const transactionsToInsert = data.transactions.map((tx: Transaction) => {
+        const formatted = {
+          user_id: userId,
+          transaction_id: String(tx.id),
+          description: String(tx.t || 'Unknown'),
+          amount: Number(tx.a),
+          date: String(tx.d),
+          category: String(tx.c || ''), // Ensure it's always a string
+        };
+        return formatted;
+      });
+
+      console.log('First 3 transactions sample:', transactionsToInsert.slice(0, 3));
+
+      const { error: transactionsError } = await supabase
+        .from('transactions')
+        .insert(transactionsToInsert);
+
+      if (transactionsError) {
+        console.error('❌ Transactions insert error:', transactionsError);
+        console.error('Error details:', JSON.stringify(transactionsError, null, 2));
+        console.error('Failed transactions sample:', transactionsToInsert.slice(0, 5));
+        throw transactionsError;
+      }
+      console.log('✅ Transactions inserted');
+    }
+
+    // Delete existing hypotheticals
+    console.log('🗑️ Deleting old hypotheticals...');
+    await supabase.from('dream_island_hypotheticals').delete().eq('user_id', userId);
+    
+    // Insert new hypotheticals
     if (data.dreamIslandHypotheticals && data.dreamIslandHypotheticals.length > 0) {
+      console.log(`📤 Inserting ${data.dreamIslandHypotheticals.length} hypotheticals...`);
+      
       const { error: hypotheticalsError } = await supabase
         .from('dream_island_hypotheticals')
         .insert(
@@ -172,15 +213,21 @@ if (data.transactions.length > 0) {
             number_of_payments: hyp.numberOfPayments,
             start_date: hyp.startDate,
           }))
-        )
+        );
 
-      if (hypotheticalsError) throw hypotheticalsError
+      if (hypotheticalsError) {
+        console.error('❌ Hypotheticals insert error:', hypotheticalsError);
+        throw hypotheticalsError;
+      }
+      console.log('✅ Hypotheticals inserted');
     }
 
-    return true
+    console.log('✅✅✅ ALL DATA SAVED SUCCESSFULLY');
+    return true;
+    
   } catch (error) {
-    console.error('Error saving data to Supabase:', error)
-    return false
+    console.error('❌❌❌ SAVE FAILED:', error);
+    return false;
   }
 }
 
