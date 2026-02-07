@@ -225,9 +225,13 @@ useEffect(() => {
       downloadAnchorNode.remove();
   };
 
-  // --- ROBUST RESTORE FUNCTION ---
+  // --- ROBUST RESTORE FUNCTION (Updated for your backup format) ---
 const handleRestoreData = async (file: File) => {
-    // Safety check for file type
+    if (!user) {
+        alert("❌ You must be logged in to restore data!");
+        return;
+    }
+
     if (!file.name.endsWith('.json') && file.type !== 'application/json') {
         if (!confirm(`The file "${file.name}" doesn't look like a JSON file. Try to restore anyway?`)) return;
     }
@@ -239,60 +243,79 @@ const handleRestoreData = async (file: File) => {
             const text = e.target?.result as string;
             if (!text) throw new Error("File is empty");
             
-            console.log('📦 Parsing JSON...');
+            console.log('📦 Parsing JSON backup...');
             const parsed = JSON.parse(text);
 
-            // Check if it's our new full backup format or legacy
-            let restoredData;
-            if (parsed.appData) {
-                console.log('📦 Full backup format detected');
-                restoredData = parsed.appData;
-                if (parsed.debtData) {
-                    localStorage.setItem('moneyflow_debts_v3', JSON.stringify(parsed.debtData));
-                }
-            } else {
-                console.log('📦 Legacy backup format detected');
-                restoredData = parsed;
-            }
-
-            console.log('📦 Restored data:', {
+            // Extract appData (your format has appData wrapper)
+            let restoredData = parsed.appData || parsed;
+            
+            console.log('📦 Backup contains:', {
                 bills: restoredData.bills?.length || 0,
                 transactions: restoredData.transactions?.length || 0,
-                balance: restoredData.budget?.startingBalance
+                balance: restoredData.budget?.startingBalance,
+                hasDebtData: !!parsed.debtData
             });
 
-            // SAVE TO SUPABASE FIRST (before updating state)
-            if (user) {
-                console.log('📤 Uploading to Supabase...');
-                const success = await saveDataToSupabase(user.id, restoredData);
-                
-                if (!success) {
-                    console.error('❌ Supabase save failed!');
-                    alert("❌ Failed to save to cloud. Check console for errors.");
-                    return;
-                }
-                
-                console.log('✅ Supabase save successful!');
-                
-                // Now update state
-                setData(restoredData);
-                
-                // Wait a tiny bit to ensure state is updated
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                alert("✅ Restore Successful! Data saved to cloud.\n\nRefreshing in 2 seconds...");
-                
-                // Reload after a delay
-                setTimeout(() => {
-                    window.location.reload();
-                }, 2000);
-                
-            } else {
-                alert("❌ You must be logged in to restore data!");
+            // Validate and clean the data before sending to Supabase
+            const cleanedData = {
+                budget: {
+                    startingBalance: Number(restoredData.budget?.startingBalance || 0),
+                    avgIncome: Number(restoredData.budget?.avgIncome || 0),
+                    annaContrib: Number(restoredData.budget?.annaContrib || 0),
+                    rentTotal: Number(restoredData.budget?.rentTotal || 0),
+                },
+                bills: (restoredData.bills || []).map((bill: any) => ({
+                    id: Number(bill.id),
+                    name: String(bill.name || 'Unknown'),
+                    amount: Number(bill.amount || 0),
+                    day: Number(bill.day || bill.dueDate || 1),
+                    manualPaid: bill.manualPaid || []
+                })),
+                transactions: (restoredData.transactions || []).map((tx: any) => ({
+                    id: Number(tx.id),
+                    d: String(tx.d || '2026-01-01'), // date
+                    t: String(tx.t || 'Unknown'), // title/description
+                    a: Number(tx.a || 0), // amount
+                    c: String(tx.c || '') // category
+                })),
+                dreamIslandHypotheticals: restoredData.dreamIslandHypotheticals || []
+            };
+
+            console.log('🧹 Cleaned data ready for upload');
+
+            // Save debt data to localStorage if present
+            if (parsed.debtData) {
+                localStorage.setItem('moneyflow_debts_v3', JSON.stringify(parsed.debtData));
+                console.log('💾 Debt data saved to localStorage');
             }
+
+            // Upload to Supabase
+            console.log('📤 Uploading to Supabase...');
+            const success = await saveDataToSupabase(user.id, cleanedData);
+            
+            if (!success) {
+                throw new Error('Supabase save returned false');
+            }
+            
+            console.log('✅ Successfully uploaded to Supabase!');
+            
+            // Update local state
+            setData(cleanedData);
+            
+            // Show success and reload
+            alert(`✅ Restore Successful!\n\n` +
+                  `- ${cleanedData.bills.length} bills\n` +
+                  `- ${cleanedData.transactions.length} transactions\n` +
+                  `- Balance: $${cleanedData.budget.startingBalance}\n\n` +
+                  `Reloading app...`);
+            
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+            
         } catch (err: any) {
             console.error('❌ Restore error:', err);
-            alert("❌ Restore Failed: " + err.message);
+            alert("❌ Restore Failed: " + err.message + "\n\nCheck browser console for details.");
         }
     };
     
