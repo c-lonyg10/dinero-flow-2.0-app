@@ -27,6 +27,7 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
   const [isAddingExpense, setIsAddingExpense] = useState(false);
   const [expenseType, setExpenseType] = useState<'one-time' | 'recurring' | 'payment-plan'>('one-time');
   const [forecastMonth, setForecastMonth] = useState(0); // 0, 1, or 2 for 3-month forecast
+  const [screenshotWarningShown, setScreenshotWarningShown] = useState(false);
   
   // Payment plan auto-calculation
   const [paymentPlanTotal, setPaymentPlanTotal] = useState<number>(0);
@@ -142,6 +143,21 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
     return expenseDate.getFullYear() === year && expenseDate.getMonth() === month;
   };
 
+  // Helper function to check if recurring expense should appear in a specific month
+  const shouldRecurringExpenseAppear = (expense: HypotheticalExpense, year: number, month: number): boolean => {
+    if (expense.type !== 'recurring') return false;
+    
+    // If no date set, appear in all months
+    if (!expense.startDate) {
+      return true;
+    }
+    
+    // Only appear in months >= start date
+    const expenseDate = new Date(expense.startDate);
+    const checkDate = new Date(year, month, 1);
+    return checkDate >= expenseDate;
+  };
+
   // Calculate 3-month forecast
   const forecastMonths = [];
   for (let i = 0; i < 3; i++) {
@@ -163,7 +179,10 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
     // One-time expenses now check their date to see if they fall in this month
     const oneTimeExpensesInMonth = hypotheticals.filter(h => isOneTimeExpenseInMonth(h, forecastYear, forecastMonthNum));
     const oneTimeTotal = oneTimeExpensesInMonth.reduce((sum, h) => sum + h.amount, 0);
-    const recurringTotal = hypotheticals.filter(h => h.type === 'recurring').reduce((sum, h) => sum + h.amount, 0);
+    
+    // Recurring expenses check if they should appear in this month (based on start date)
+    const recurringExpensesInMonth = hypotheticals.filter(h => shouldRecurringExpenseAppear(h, forecastYear, forecastMonthNum));
+    const recurringTotal = recurringExpensesInMonth.reduce((sum, h) => sum + h.amount, 0);
     
     // Calculate payment plan total for this month
     let paymentPlanTotal = 0;
@@ -191,6 +210,7 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
       oneTimeTotal,
       oneTimeExpensesInMonth,
       recurringTotal,
+      recurringExpensesInMonth,
       paymentPlanTotal,
       paymentPlanDetails,
       startingBalance,
@@ -259,6 +279,14 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
         }
       }
 
+      // Add date for recurring expenses (optional)
+      if (expenseType === 'recurring') {
+        const startDate = formData.get('startDate') as string;
+        if (startDate) {
+          newExpense.startDate = startDate;
+        }
+      }
+
       // Add payment plan specific fields
       if (expenseType === 'payment-plan') {
         newExpense.totalAmount = parseFloat(formData.get('totalAmount') as string) || 0;
@@ -282,17 +310,24 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
     setIncludeFoodAnalysis(true);
     setShowForecasted(true);
     setForecastMonth(0);
+    setScreenshotWarningShown(false);
   };
 
   const handleExitWithPrompt = () => {
-    if (hypotheticals.length > 0) {
-      const takeScreenshot = confirm("📸 Save a screenshot before resetting?\n\nTap OK to take a screenshot, or Cancel to just exit.");
-      if (takeScreenshot) {
-        alert("📸 Take a screenshot now!\n\nAfter you capture your screen, the page will reset.");
-      }
+    // Step 1: If there are hypotheticals and warning hasn't been shown yet
+    if (hypotheticals.length > 0 && !screenshotWarningShown) {
+      alert("📸 Take a screenshot of your forecast before leaving!\n\nThe X button will turn RED. Click it again when you're ready to exit.");
+      setScreenshotWarningShown(true);
+      return; // Stay on page
     }
-    handleReset();
-    onExit();
+    
+    // Step 2: Confirm exit (either no hypotheticals or warning already shown)
+    const confirmExit = confirm("Exit Dream Island?\n\nYour hypothetical expenses will be cleared.");
+    if (confirmExit) {
+      handleReset();
+      setScreenshotWarningShown(false); // Reset for next time
+      onExit();
+    }
   };
 
   // Arcade Button Component
@@ -343,7 +378,11 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
         </h2>
         <button 
           onClick={handleExitWithPrompt}
-          className="p-2 bg-neutral-800 rounded-xl text-white hover:bg-neutral-700 transition-colors"
+          className={`p-2 rounded-xl transition-colors ${
+            screenshotWarningShown 
+              ? 'bg-red-900 text-red-200 hover:bg-red-800 ring-2 ring-red-500 animate-pulse' 
+              : 'bg-neutral-800 text-white hover:bg-neutral-700'
+          }`}
         >
           <X size={20} />
         </button>
@@ -563,7 +602,7 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
                     <span className="font-bold text-white">${h.amount.toFixed(2)}</span>
                   </div>
                 ))}
-                {hypotheticals.filter(h => h.type === 'recurring').map(h => (
+                {currentForecast.recurringExpensesInMonth && currentForecast.recurringExpensesInMonth.map(h => (
                   <div key={h.id} className="flex justify-between items-center text-sm">
                     <span className="text-orange-400">{h.name}</span>
                     <span className="font-bold text-white">${h.amount.toFixed(2)}</span>
@@ -716,14 +755,26 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
                   </div>
                 </>
               ) : (
-                <input
-                  name="amount"
-                  type="number"
-                  step="0.01"
-                  placeholder="Amount"
-                  required
-                  className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-orange-500"
-                />
+                <>
+                  <input
+                    name="amount"
+                    type="number"
+                    step="0.01"
+                    placeholder="Amount"
+                    required
+                    className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-orange-500"
+                  />
+                  <div>
+                    <label className="block text-xs text-neutral-500 mb-2 font-bold uppercase">Start Date (Optional)</label>
+                    <input
+                      name="startDate"
+                      type="date"
+                      min={new Date().toISOString().split('T')[0]}
+                      className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-orange-500"
+                    />
+                    <p className="text-xs text-neutral-500 mt-1">Leave blank to start from all months, or set date to start from a specific month</p>
+                  </div>
+                </>
               )}
               
               <button
