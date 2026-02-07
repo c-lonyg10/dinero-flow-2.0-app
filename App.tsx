@@ -239,39 +239,59 @@ const handleRestoreData = async (file: File) => {
             const text = e.target?.result as string;
             if (!text) throw new Error("File is empty");
             
+            console.log('📦 Parsing JSON...');
             const parsed = JSON.parse(text);
 
             // Check if it's our new full backup format or legacy
             let restoredData;
             if (parsed.appData) {
-                // Full Backup
+                console.log('📦 Full backup format detected');
                 restoredData = parsed.appData;
                 if (parsed.debtData) {
                     localStorage.setItem('moneyflow_debts_v3', JSON.stringify(parsed.debtData));
                 }
             } else {
-                // Legacy Backup
+                console.log('📦 Legacy backup format detected');
                 restoredData = parsed;
             }
 
-            // Update state
-            setData(restoredData);
-            
-            // SAVE TO SUPABASE!
+            console.log('📦 Restored data:', {
+                bills: restoredData.bills?.length || 0,
+                transactions: restoredData.transactions?.length || 0,
+                balance: restoredData.budget?.startingBalance
+            });
+
+            // SAVE TO SUPABASE FIRST (before updating state)
             if (user) {
-                console.log('📤 Saving restored data to Supabase...');
+                console.log('📤 Uploading to Supabase...');
                 const success = await saveDataToSupabase(user.id, restoredData);
-                if (success) {
-                    alert("✅ Restore Successful! Data saved to cloud.\n\nRefreshing...");
-                    window.location.reload();
-                } else {
-                    alert("⚠️ Data restored locally but Supabase save failed. Check console.");
+                
+                if (!success) {
+                    console.error('❌ Supabase save failed!');
+                    alert("❌ Failed to save to cloud. Check console for errors.");
+                    return;
                 }
+                
+                console.log('✅ Supabase save successful!');
+                
+                // Now update state
+                setData(restoredData);
+                
+                // Wait a tiny bit to ensure state is updated
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                alert("✅ Restore Successful! Data saved to cloud.\n\nRefreshing in 2 seconds...");
+                
+                // Reload after a delay
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+                
             } else {
-                alert("✅ Restore Successful! (Note: Not logged in, so not saved to cloud)");
+                alert("❌ You must be logged in to restore data!");
             }
         } catch (err: any) {
-            console.error(err);
+            console.error('❌ Restore error:', err);
             alert("❌ Restore Failed: " + err.message);
         }
     };
