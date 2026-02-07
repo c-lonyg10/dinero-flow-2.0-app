@@ -186,36 +186,71 @@ if (data.transactions.length > 0) {
 
 // One-time migration from localStorage to Supabase
 export async function migrateLocalStorageToSupabase(userId: string): Promise<boolean> {
+  console.log('🔍 MIGRATION CHECK: Starting...');
+  
   try {
     // Check if Supabase already has data
-    const existingData = await loadDataFromSupabase(userId)
+    console.log('🔍 MIGRATION CHECK: Checking Supabase for existing data...');
+    const existingData = await loadDataFromSupabase(userId);
+    
     if (existingData) {
-      console.log('Supabase already has data, skipping migration')
+      console.log('⏭️ MIGRATION SKIP: Supabase already has data');
       return false // Already migrated
     }
+    
+    console.log('✅ MIGRATION CHECK: Supabase is empty, checking localStorage...');
 
-    // Check if localStorage has data
-    const localData = localStorage.getItem('moneyflow_data_v35')
-    if (!localData) {
-      console.log('No localStorage data to migrate')
-      return false // No data to migrate
+    // Check ALL possible localStorage keys
+    const possibleKeys = [
+      'moneyflow_data_v35',
+      'moneyflow_data',
+      'dinero_flow_data',
+      'dinero-flow-data'
+    ];
+    
+    let localData = null;
+    let usedKey = null;
+    
+    for (const key of possibleKeys) {
+      const data = localStorage.getItem(key);
+      if (data) {
+        localData = data;
+        usedKey = key;
+        console.log(`✅ FOUND DATA in localStorage under key: "${key}"`);
+        break;
+      }
     }
 
+    if (!localData) {
+      console.log('❌ MIGRATION SKIP: No localStorage data found in any key');
+      console.log('Checked keys:', possibleKeys);
+      console.log('All localStorage keys:', Object.keys(localStorage));
+      return false
+    }
+
+    console.log(`📦 MIGRATION: Found ${localData.length} characters of data`);
+    
     // Parse localStorage data
-    const parsedData = JSON.parse(localData)
+    const parsedData = JSON.parse(localData);
+    console.log('📦 MIGRATION: Parsed data:', {
+      bills: parsedData.bills?.length || 0,
+      transactions: parsedData.transactions?.length || 0,
+      hasbudget: !!parsedData.budget
+    });
     
     // Upload to Supabase
-    const success = await saveDataToSupabase(userId, parsedData)
+    console.log('📤 MIGRATION: Uploading to Supabase...');
+    const success = await saveDataToSupabase(userId, parsedData);
     
     if (success) {
-      console.log('✅ Migration successful! Data uploaded to Supabase')
+      console.log('✅✅✅ MIGRATION SUCCESS! Data uploaded to Supabase');
       return true
     } else {
-      console.error('❌ Migration failed')
+      console.error('❌ MIGRATION FAILED: Upload returned false');
       return false
     }
   } catch (error) {
-    console.error('Error during migration:', error)
+    console.error('❌ MIGRATION ERROR:', error);
     return false
   }
 }
