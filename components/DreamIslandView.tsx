@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AppData, Transaction } from '../types';
-import { Plus, X, Trash2 } from 'lucide-react';
+import { Plus, X, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface DreamIslandViewProps {
   data: AppData;
@@ -22,6 +22,7 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
   const [hypotheticals, setHypotheticals] = useState<HypotheticalExpense[]>([]);
   const [isAddingExpense, setIsAddingExpense] = useState(false);
   const [expenseType, setExpenseType] = useState<'one-time' | 'recurring'>('one-time');
+  const [forecastMonth, setForecastMonth] = useState(0); // 0, 1, or 2 for 3-month forecast
 
   // Calculate Current Reality
   const currentDate = new Date();
@@ -83,6 +84,60 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
   // Calculate monthly income (number of paychecks × paycheck amount)
   const monthlyIncome = paydayCount * data.budget.avgIncome;
 
+  // Helper function to count paydays in any month
+  const countPaydaysInMonth = (year: number, month: number) => {
+    const days = new Date(year, month + 1, 0).getDate();
+    let count = 0;
+    for (let day = 1; day <= days; day++) {
+      const current = new Date(year, month, day);
+      const diffDays = Math.ceil((current.getTime() - refDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays % 14 === 0) count++;
+    }
+    return count;
+  };
+
+  // Calculate 3-month forecast
+  const forecastMonths = [];
+  for (let i = 0; i < 3; i++) {
+    const forecastDate = new Date(currentYear, currentMonth + i, 1);
+    const forecastYear = forecastDate.getFullYear();
+    const forecastMonthNum = forecastDate.getMonth();
+    
+    // Get paychecks for this forecast month
+    const paychecks = countPaydaysInMonth(forecastYear, forecastMonthNum);
+    const income = paychecks * data.budget.avgIncome;
+    
+    // Calculate expenses for this month
+    let expenses = 0;
+    if (includeFixedBills) expenses += fixedBillsTotal;
+    if (includeRent) expenses += rentTotal;
+    if (includeFoodAnalysis) expenses += foodTotal;
+    
+    // Calculate hypotheticals for this month
+    const oneTimeTotal = i === 0 ? hypotheticals.filter(h => h.type === 'one-time').reduce((sum, h) => sum + h.amount, 0) : 0;
+    const recurringTotal = hypotheticals.filter(h => h.type === 'recurring').reduce((sum, h) => sum + h.amount, 0);
+    
+    // Calculate balance (compounding from previous month)
+    const startingBalance = i === 0 ? 0 : forecastMonths[i - 1].endingBalance;
+    const endingBalance = startingBalance + income - expenses - oneTimeTotal - recurringTotal;
+    const netResult = income - expenses - oneTimeTotal - recurringTotal;
+    
+    forecastMonths.push({
+      month: forecastMonthNum,
+      year: forecastYear,
+      paychecks,
+      income,
+      expenses,
+      oneTimeTotal,
+      recurringTotal,
+      startingBalance,
+      endingBalance,
+      netResult
+    });
+  }
+
+  const currentForecast = forecastMonths[forecastMonth];
+
   // Starting balance
   const startingBalance = data.budget.startingBalance;
 
@@ -94,20 +149,6 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
 
   const currentNetFlow = monthlyIncome - currentMonthlyOut;
   const currentBalance = startingBalance + currentNetFlow;
-
-  // Calculate hypothetical impact
-  const hypotheticalOneTime = hypotheticals
-    .filter(h => h.type === 'one-time')
-    .reduce((sum, h) => sum + h.amount, 0);
-  
-  const hypotheticalRecurring = hypotheticals
-    .filter(h => h.type === 'recurring')
-    .reduce((sum, h) => sum + h.amount, 0);
-
-  const newMonthlyOut = currentMonthlyOut + hypotheticalRecurring;
-  const newNetFlow = monthlyIncome - newMonthlyOut;
-  const newBalance = currentBalance - hypotheticalOneTime + newNetFlow;
-  const difference = newBalance - currentBalance;
 
   // Add hypothetical expense
   const handleAddExpense = (e: React.FormEvent<HTMLFormElement>) => {
@@ -137,6 +178,7 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
     setIncludeRent(true);
     setIncludeFoodAnalysis(true);
     setShowForecasted(true);
+    setForecastMonth(0);
   };
 
   const handleExitWithPrompt = () => {
@@ -299,23 +341,126 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
           )}
         </div>
 
-        {/* With Hypotheticals Section */}
+        {/* 3-Month Forecast Carousel */}
         <div className="bg-gradient-to-br from-purple-900/20 to-orange-900/20 border-2 border-purple-500/30 rounded-3xl p-6 shadow-xl">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></div>
-            <h3 className="text-sm font-bold text-purple-400 uppercase tracking-wider">With Hypotheticals</h3>
-          </div>
-          
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-neutral-400 text-sm">New Balance</span>
-              <span className="text-3xl font-black text-white">${newBalance.toFixed(2)}</span>
+          {/* Month selector */}
+          <div className="flex items-center justify-between mb-6">
+            <button
+              onClick={() => setForecastMonth(Math.max(0, forecastMonth - 1))}
+              disabled={forecastMonth === 0}
+              className={`p-2 rounded-lg transition-colors ${
+                forecastMonth === 0 
+                  ? 'text-neutral-700 cursor-not-allowed' 
+                  : 'text-purple-400 hover:bg-purple-900/30'
+              }`}
+            >
+              <ChevronLeft size={24} />
+            </button>
+            
+            <div className="text-center">
+              <h3 className="text-lg font-black text-white">
+                {new Date(currentForecast.year, currentForecast.month).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+              </h3>
+              <p className="text-xs text-neutral-500">Month {forecastMonth + 1} of 3</p>
             </div>
-            <div className="h-px bg-neutral-800"></div>
+            
+            <button
+              onClick={() => setForecastMonth(Math.min(2, forecastMonth + 1))}
+              disabled={forecastMonth === 2}
+              className={`p-2 rounded-lg transition-colors ${
+                forecastMonth === 2 
+                  ? 'text-neutral-700 cursor-not-allowed' 
+                  : 'text-purple-400 hover:bg-purple-900/30'
+              }`}
+            >
+              <ChevronRight size={24} />
+            </button>
+          </div>
+
+          {/* Starting Balance (for months 2 & 3) */}
+          {forecastMonth > 0 && (
+            <div className="mb-4 p-3 bg-neutral-900 rounded-xl">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-neutral-400">Starting Balance</span>
+                <span className={`font-bold ${currentForecast.startingBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  ${currentForecast.startingBalance.toFixed(2)}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Income */}
+          <div className="mb-4">
+            <h4 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Income</h4>
+            <div className="bg-neutral-900 rounded-xl p-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-neutral-400">Paychecks ({currentForecast.paychecks})</span>
+                <span className="text-lg font-black text-emerald-400">${currentForecast.income.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Expenses */}
+          <div className="mb-4">
+            <h4 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Expenses</h4>
+            <div className="bg-neutral-900 rounded-xl p-3 space-y-2">
+              {includeRent && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-neutral-400">Rent</span>
+                  <span className="font-bold text-white">${rentTotal.toFixed(2)}</span>
+                </div>
+              )}
+              {includeFixedBills && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-neutral-400">Bills/Subs</span>
+                  <span className="font-bold text-white">${fixedBillsTotal.toFixed(2)}</span>
+                </div>
+              )}
+              {includeFoodAnalysis && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-neutral-400">Food</span>
+                  <span className="font-bold text-white">${foodTotal.toFixed(2)}</span>
+                </div>
+              )}
+              {currentForecast.expenses === 0 && (
+                <p className="text-xs text-neutral-600 text-center py-2">No expenses selected</p>
+              )}
+            </div>
+          </div>
+
+          {/* Hypotheticals */}
+          {hypotheticals.length > 0 && (
+            <div className="mb-4">
+              <h4 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Hypotheticals</h4>
+              <div className="bg-neutral-900 rounded-xl p-3 space-y-2">
+                {forecastMonth === 0 && hypotheticals.filter(h => h.type === 'one-time').map(h => (
+                  <div key={h.id} className="flex justify-between items-center text-sm">
+                    <span className="text-purple-400">{h.name}</span>
+                    <span className="font-bold text-white">${h.amount.toFixed(2)}</span>
+                  </div>
+                ))}
+                {hypotheticals.filter(h => h.type === 'recurring').map(h => (
+                  <div key={h.id} className="flex justify-between items-center text-sm">
+                    <span className="text-orange-400">{h.name}</span>
+                    <span className="font-bold text-white">${h.amount.toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Net Result */}
+          <div className="pt-4 border-t-2 border-neutral-800">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm text-neutral-400">Net Result</span>
+              <span className={`text-2xl font-black ${currentForecast.netResult >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {currentForecast.netResult >= 0 ? '+' : ''}{currentForecast.netResult.toFixed(2)}
+              </span>
+            </div>
             <div className="flex justify-between items-center">
-              <span className="text-neutral-400 text-sm">Difference</span>
-              <span className={`text-2xl font-black ${difference >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {difference >= 0 ? '+' : ''}{difference.toFixed(2)}
+              <span className="text-sm font-bold text-white">Ending Balance</span>
+              <span className={`text-3xl font-black ${currentForecast.endingBalance >= 0 ? 'text-white' : 'text-red-400'}`}>
+                ${currentForecast.endingBalance.toFixed(2)}
               </span>
             </div>
           </div>
