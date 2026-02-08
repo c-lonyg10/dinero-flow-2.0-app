@@ -120,34 +120,35 @@ export async function saveDataToSupabase(userId: string, data: AppData): Promise
     }
     
     // Insert new bills
-    if (data.bills.length > 0) {
-      console.log(`📤 Inserting ${data.bills.length} bills...`);
-      
-      const billsToInsert = data.bills.map((bill: Bill) => {
-        const formatted = {
-          user_id: userId,
-          bill_id: Number(bill.id),
-          name: String(bill.name),
-          amount: Number(bill.amount),
-          due_date: Number(bill.day),
-          category: '', // Always empty string for bills
-        };
-        return formatted;
-      });
+if (data.bills.length > 0) {
+  console.log(`📤 Inserting ${data.bills.length} bills...`);
+  
+  const billsToInsert = data.bills.map((bill: any) => {
+    // ONLY include fields that exist in Supabase schema
+    return {
+      user_id: userId,
+      bill_id: parseInt(String(bill.id)),
+      name: String(bill.name),
+      amount: parseFloat(String(bill.amount)),
+      due_date: parseInt(String(bill.day || bill.dueDate || 1)),
+      category: '', // Always empty string
+    };
+  });
 
-      console.log('First bill sample:', billsToInsert[0]);
+  console.log('First bill sample:', JSON.stringify(billsToInsert[0]));
 
-      const { error: billsError } = await supabase
-        .from('bills')
-        .insert(billsToInsert);
+  const { error: billsError } = await supabase
+    .from('bills')
+    .insert(billsToInsert);
 
-      if (billsError) {
-        console.error('❌ Bills insert error:', billsError);
-        console.error('Error details:', JSON.stringify(billsError, null, 2));
-        throw billsError;
-      }
-      console.log('✅ Bills inserted');
-    }
+  if (billsError) {
+    console.error('❌ Bills insert error:', billsError);
+    console.error('Error details:', JSON.stringify(billsError, null, 2));
+    console.error('First 3 bills that failed:', JSON.stringify(billsToInsert.slice(0, 3), null, 2));
+    throw billsError;
+  }
+  console.log('✅ Bills inserted');
+}
 
     // Delete existing transactions
     console.log('🗑️ Deleting old transactions...');
@@ -161,36 +162,35 @@ export async function saveDataToSupabase(userId: string, data: AppData): Promise
       throw deleteTxError;
     }
     
-    // Insert new transactions
-    if (data.transactions.length > 0) {
-      console.log(`📤 Inserting ${data.transactions.length} transactions...`);
-      
-      const transactionsToInsert = data.transactions.map((tx: Transaction) => {
-        const formatted = {
-          user_id: userId,
-          transaction_id: String(tx.id),
-          description: String(tx.t || 'Unknown'),
-          amount: Number(tx.a),
-          date: String(tx.d),
-          category: String(tx.c || ''), // Ensure it's always a string
-        };
-        return formatted;
-      });
+    // Insert new transactions  
+if (data.transactions.length > 0) {
+  console.log(`📤 Inserting ${data.transactions.length} transactions...`);
+  
+  const transactionsToInsert = data.transactions.map((tx: any, index: number) => {
+    // Convert timestamp IDs to simple sequential IDs to avoid integer overflow
+    return {
+      user_id: userId,
+      transaction_id: `tx_${index}_${Date.now()}`, // Use a safe string ID format
+      description: String(tx.t || tx.description || 'Unknown'),
+      amount: parseFloat(String(tx.a || tx.amount || 0)),
+      date: String(tx.d || tx.date || '2026-01-01'),
+      category: String(tx.c || tx.category || ''),
+    };
+  });
 
-      console.log('First 3 transactions sample:', transactionsToInsert.slice(0, 3));
+  console.log('First 3 transactions:', JSON.stringify(transactionsToInsert.slice(0, 3), null, 2));
 
-      const { error: transactionsError } = await supabase
-        .from('transactions')
-        .insert(transactionsToInsert);
+  const { error: transactionsError } = await supabase
+    .from('transactions')
+    .insert(transactionsToInsert);
 
-      if (transactionsError) {
-        console.error('❌ Transactions insert error:', transactionsError);
-        console.error('Error details:', JSON.stringify(transactionsError, null, 2));
-        console.error('Failed transactions sample:', transactionsToInsert.slice(0, 5));
-        throw transactionsError;
-      }
-      console.log('✅ Transactions inserted');
-    }
+  if (transactionsError) {
+    console.error('❌ Transactions insert error:', transactionsError);
+    console.error('Error details:', JSON.stringify(transactionsError, null, 2));
+    throw transactionsError;
+  }
+  console.log('✅ Transactions inserted');
+}
 
     // Delete existing hypotheticals
     console.log('🗑️ Deleting old hypotheticals...');
