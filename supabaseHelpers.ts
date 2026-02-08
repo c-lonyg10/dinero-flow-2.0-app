@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient'
-import { AppData } from './types'
+import { AppData, Debt } from './types'
 
 // Helper to show errors on mobile
 const showError = (title: string, error: any) => {
@@ -45,14 +45,23 @@ export async function loadDataFromSupabase(userId: string): Promise<AppData | nu
 
     if (hypotheticalsError) throw hypotheticalsError
 
-    if (!budgetData) return null
-
     // 5. Fetch Debts
     const { data: debtsData, error: debtsError } = await supabase.from('debts').select('*').eq('user_id', userId);
-    if (debtsError) throw debtsError;
+    
+    if (!budgetData) return null;
+
+    // --- AUTO-DEDUPLICATOR FOR DEBTS ---
+    // If we find debts with the exact same name, we keep only the last one.
+    const uniqueDebtsMap = new Map();
+    (debtsData || []).forEach((d: any) => {
+        uniqueDebtsMap.set(d.name, d); // Overwrites previous entry with same name
+    });
+    const cleanedDebts = Array.from(uniqueDebtsMap.values());
+    // -----------------------------------
+
+    return {
 
     // Transform Data
-    const appData: AppData = {
       budget: {
         startingBalance: Number(budgetData.starting_balance),
         avgIncome: Number(budgetData.avg_income),
@@ -94,7 +103,7 @@ export async function loadDataFromSupabase(userId: string): Promise<AppData | nu
         startDate: hyp.start_date || undefined,
       })),
 
-      debts: (debtsData || []).map((d: any) => ({
+      debts: cleanedDebts.map((d: any) => ({
         id: Number(d.id),
         name: d.name,
         totalAmount: Number(d.total_amount),
@@ -103,10 +112,8 @@ export async function loadDataFromSupabase(userId: string): Promise<AppData | nu
         icon: d.icon,
         color: d.color,
         dueDay: d.due_day
-    })),
+     })),
     }
-
-    return appData
   } catch (error: any) {
     showError('Load Failed', error);
     return null
@@ -116,11 +123,11 @@ export async function loadDataFromSupabase(userId: string): Promise<AppData | nu
 // Save all data to Supabase (Smart Sync: Upsert + Delete Missing)
 export async function saveDataToSupabase(userId: string, data: AppData): Promise<boolean> {
   // Safety check: Don't save empty data
-  if (!data.budget || (data.bills.length === 0 && data.transactions.length === 0)) {
+  if (!data.budget || (data.bills.length === 0 && data.transactions.length == 0)) {
     return false;
   }
 
-  const results = { budget: false, bills: false, transactions: false, hypotheticals: false };
+  const results = { budget: false, bills: false, transactions: false, hypotheticals: false, debts: false };
 
   // 1. BUDGET (Upsert)
   try {
@@ -168,6 +175,7 @@ export async function saveDataToSupabase(userId: string, data: AppData): Promise
             amount: parseFloat(String(bill.amount)),
             due_date: Number(bill.day || bill.dueDate || 1),
             manual_paid: bill.manualPaid || [], // <--- UPDATED: Save the Paid History
+            category: ' ',
         }));
 
         const { error } = await supabase.from('bills').upsert(billsToUpsert, { onConflict: 'user_id, bill_id' });
@@ -255,28 +263,46 @@ export async function saveDataToSupabase(userId: string, data: AppData): Promise
     results.hypotheticals = true;
   } catch (error) { console.error('Save Hypo Error', error); }
 
-  // 5. DEBTS
+  // 5. DEBTS (FIXED: NOW USES SMART SYNC INSTEAD OF WIPE & REPLACE)
   try {
-    // Basic overwrite strategy for debts (simplest for now)
-    await supabase.from('debts').delete().eq('user_id', userId);
     if (data.debts && data.debts.length > 0) {
-        const { error } = await supabase.from('debts').insert(
-            data.debts.map((d: any) => ({
-                user_id: userId,
-                name: d.name,
-                total_amount: d.totalAmount,
-                pre_paid: d.prePaid,
-                monthly_payment: d.monthlyPayment,
-                icon: d.icon,
-                color: d.color,
-                due_day: d.dueDay
-            }))
-        );
+        // A. Garbage Collection (Delete debts removed from App)
+        const localDebtIds = new Set(data.debts.map((d: Debt) => Number(d.id)));
+        const { data: serverDebts } = await supabase.from('debts').select('id').eq('user_id', userId);
+
+        if (serverDebts) {
+            const idsToDelete = serverDebts
+                .map(row => row.id)
+                .filter(id => !localDebtIds.has(id)); 
+
+            if (idsToDelete.length > 0) {
+                await supabase.from('debts').delete().eq('user_id', userId).in('id', idsToDelete);
+            }
+        }
+
+        // B. Upsert (Update existing, Insert new)
+        const debtsToUpsert = data.debts.map((d: Debt) => ({
+            user_id: userId,
+            id: Number(d.id), // Use the specific ID so it updates instead of creates new
+            name: d.name,
+            total_amount: d.totalAmount,
+            pre_paid: d.prePaid,
+            monthly_payment: d.monthlyPayment,
+            icon: d.icon,
+            color: d.color,
+            due_day: d.dueDay
+        }));
+
+        const { error } = await supabase.from('debts').upsert(debtsToUpsert, { onConflict: 'user_id, id' }); // <--- CRITICAL FIX
         if (error) throw error;
+    } else {
+        // If app has 0 debts, ensure server has 0 debts
+        await supabase.from('debts').delete().eq('user_id', userId);
     }
+    results.debts = true;
   } catch (error) { console.error('Save Debts Error', error); }
 
-  return results.budget && results.bills && results.transactions && results.hypotheticals;
+  return results.budget && results.bills && results.transactions;
 }
 
 export async function migrateLocalStorageToSupabase(userId: string): Promise<boolean> {
