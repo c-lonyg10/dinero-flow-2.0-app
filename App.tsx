@@ -278,6 +278,9 @@ const handleRestoreData = async (file: File) => {
                     a: Number(tx.a || 0), // amount
                     c: String(tx.c || '') // category
                 })),
+
+                debts: restoredData.debts || [],
+                
                 dreamIslandHypotheticals: restoredData.dreamIslandHypotheticals || []
             };
 
@@ -692,7 +695,7 @@ const handleRestoreData = async (file: File) => {
             />
           }
           
-          {activeTab === 'debt' && <DebtView data={data} />}
+          {activeTab === 'debt' && <DebtView data={data} onSave={setData} />}
           
           {(activeTab as any) === 'categories' && 
              <CategoriesView 

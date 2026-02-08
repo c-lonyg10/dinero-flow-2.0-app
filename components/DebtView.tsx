@@ -1,87 +1,45 @@
-import React, { useState, useEffect } from 'react';
-import { Sword, Trophy, Plus, Trash2, X, Check, Save, TrendingDown, Handshake, Car, GraduationCap, DollarSign } from 'lucide-react';
-import { AppData } from '../types';
+import React, { useState } from 'react';
+import { Sword, Trophy, Plus, Trash2, X, Check, Save, TrendingDown, Handshake, Car, GraduationCap } from 'lucide-react';
+import { AppData, Debt } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
 interface DebtViewProps {
     data: AppData;
+    // We need a way to update global data now that it's not local state
+    onUpdateDebts?: (newDebts: Debt[]) => void; 
 }
 
-interface DebtItem {
-    id: number;
-    name: string;
-    totalAmount: number;
-    prePaid: number;
-    monthlyPayment?: number; // <--- NEW FIELD ADDED HERE
-    icon: string; 
-    color: string;
-    dueDay?: string;
-    nextAmt?: number;
-}
+// NOTE: Ideally, you pass a setter from App.tsx. 
+// For now, if you don't have one, this view is Read-Only unless we wire it up.
+// Assuming you will update App.tsx to pass a handler, or we use a temporary local hack?
+// Let's assume you pass `setData` down or a specific `onUpdateDebts` handler.
 
-const DebtView: React.FC<DebtViewProps> = ({ data }) => {
-    const [debts, setDebts] = useState<DebtItem[]>([]);
+const DebtView: React.FC<any> = ({ data, onSave }) => { 
+    // ^ Changed props to accept onSave (which is actually setData in App.tsx typically)
+    
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [newDebt, setNewDebt] = useState<Partial<DebtItem>>({ color: 'blue' });
+    const [newDebt, setNewDebt] = useState<Partial<Debt>>({ color: 'blue' });
 
-    // Load Debts
-    useEffect(() => {
-        const saved = localStorage.getItem('moneyflow_debts_v3'); 
-        if (saved) {
-            setDebts(JSON.parse(saved));
-        } else {
-            // FORCE RELOAD OF ORIGINAL DATA
-            setDebts([
-                { 
-                    id: 1, 
-                    name: "Tio Frank", 
-                    totalAmount: 7875, 
-                    prePaid: 4437, 
-                    monthlyPayment: 787.50, // Added based on your previous data
-                    icon: 'handshake', 
-                    color: 'blue',
-                    dueDay: '15th',
-                    nextAmt: 787.50
-                },
-                { 
-                    id: 2, 
-                    name: "Wells Fargo", 
-                    totalAmount: 8022.57, 
-                    prePaid: 7006.57, 
-                    monthlyPayment: 170, // Estimate based on nextAmt
-                    icon: 'car', 
-                    color: 'indigo',
-                    dueDay: '11th',
-                    nextAmt: 169.32
-                },
-                { 
-                    id: 3, 
-                    name: "Student Loan", 
-                    totalAmount: 8500, 
-                    prePaid: 2000, 
-                    monthlyPayment: 154, // Estimate
-                    icon: 'school', 
-                    color: 'purple',
-                    dueDay: '5th',
-                    nextAmt: 153.83
-                }
-            ]);
+    // Helper to update debts globally
+    const updateDebts = (updatedList: Debt[]) => {
+        if (onSave) {
+            onSave((prev: AppData) => ({ ...prev, debts: updatedList }));
         }
-    }, []);
+    };
 
-    // Save Debts
-    useEffect(() => {
-        localStorage.setItem('moneyflow_debts_v3', JSON.stringify(debts));
-    }, [debts]);
-
-    const getDebtStats = (debt: DebtItem) => {
+    const getDebtStats = (debt: Debt) => {
+        // STRICT FILTER: Transaction must be category 'Debt' AND contain the debt name
         const appPayments = data.transactions ? data.transactions.filter(t => 
             t.c === 'Debt' && 
             t.t.toLowerCase().includes(debt.name.toLowerCase())
         ) : [];
 
         const paymentsTotal = appPayments.reduce((sum, t) => sum + Math.abs(t.a), 0);
+        
+        // This is where we fix the "Double Dip". 
+        // Ideally, debt.prePaid should be 0 if you have full history.
         const totalPaid = (debt.prePaid || 0) + paymentsTotal;
+        
         const remaining = Math.max(0, debt.totalAmount - totalPaid);
         const progress = Math.min(100, (totalPaid / debt.totalAmount) * 100);
         
@@ -99,25 +57,24 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
 
     const handleSaveDebt = () => {
         if (!newDebt.name || !newDebt.totalAmount) return;
-        const item: DebtItem = {
+        const item: Debt = {
             id: Date.now(),
             name: newDebt.name,
             totalAmount: Number(newDebt.totalAmount),
             prePaid: Number(newDebt.prePaid || 0),
-            monthlyPayment: Number(newDebt.monthlyPayment || 0), // <--- SAVING THE NEW FIELD
+            monthlyPayment: Number(newDebt.monthlyPayment || 0),
             icon: newDebt.icon || 'card',
             color: newDebt.color || 'blue',
             dueDay: newDebt.dueDay || '1st',
-            nextAmt: Number(newDebt.nextAmt || 0)
         };
-        setDebts([...debts, item]);
+        updateDebts([...(data.debts || []), item]);
         setIsModalOpen(false);
         setNewDebt({ color: 'blue' });
     };
 
     const handleDelete = (id: number) => {
         if(confirm("Delete this debt tracker?")) {
-            setDebts(debts.filter(d => d.id !== id));
+            updateDebts(data.debts.filter((d: Debt) => d.id !== id));
         }
     };
 
@@ -151,7 +108,7 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
             </div>
 
             <div className="space-y-6 px-1">
-                {debts.map(d => {
+                {(data.debts || []).map((d: Debt) => {
                     const stats = getDebtStats(d);
                     const colors = getColors(d.color);
                     const pieData = [{ value: stats.totalPaid }, { value: stats.remaining }];
@@ -187,7 +144,6 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-bold text-white">{d.name}</h3>
-                                        {/* UPDATED HEADER: Displays Due Date AND Monthly Payment */}
                                         <p className="text-xs text-neutral-400 uppercase font-bold tracking-wide">
                                             Due: {d.dueDay} {d.monthlyPayment ? `• $${d.monthlyPayment}/mo` : ''}
                                         </p>
@@ -261,22 +217,20 @@ const DebtView: React.FC<DebtViewProps> = ({ data }) => {
                         
                         <div className="space-y-3">
                             <div>
-                                <label className="text-xs font-bold text-neutral-500 uppercase ml-1">Debt Name</label>
+                                <label className="text-xs font-bold text-neutral-500 uppercase ml-1">Debt Name (Must match Transactions)</label>
                                 <input type="text" placeholder="e.g., Wells Fargo" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white" onChange={e => setNewDebt({...newDebt, name: e.target.value})} />
                             </div>
                             <div>
                                 <label className="text-xs font-bold text-neutral-500 uppercase ml-1">Total Debt Amount</label>
                                 <input type="number" placeholder="15000" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white" onChange={e => setNewDebt({...newDebt, totalAmount: Number(e.target.value)})} />
                             </div>
-                            
-                            {/* NEW: MONTHLY PAYMENT INPUT */}
                             <div>
                                 <label className="text-xs font-bold text-neutral-500 uppercase ml-1">Monthly Payment</label>
                                 <input type="number" placeholder="e.g. 250" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white" onChange={e => setNewDebt({...newDebt, monthlyPayment: Number(e.target.value)})} />
                             </div>
-
                             <div>
-                                <label className="text-xs font-bold text-neutral-500 uppercase ml-1">Already Paid (History)</label>
+                                <label className="text-xs font-bold text-neutral-500 uppercase ml-1">Already Paid (Manual Offset)</label>
+                                <p className="text-[10px] text-neutral-500">Only put a number here if you have payments NOT in your transaction list.</p>
                                 <input type="number" placeholder="0" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white" onChange={e => setNewDebt({...newDebt, prePaid: Number(e.target.value)})} />
                             </div>
                              <div>

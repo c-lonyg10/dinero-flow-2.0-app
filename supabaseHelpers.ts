@@ -47,6 +47,10 @@ export async function loadDataFromSupabase(userId: string): Promise<AppData | nu
 
     if (!budgetData) return null
 
+    // 5. Fetch Debts
+    const { data: debtsData, error: debtsError } = await supabase.from('debts').select('*').eq('user_id', userId);
+    if (debtsError) throw debtsError;
+
     // Transform Data
     const appData: AppData = {
       budget: {
@@ -89,6 +93,17 @@ export async function loadDataFromSupabase(userId: string): Promise<AppData | nu
         numberOfPayments: hyp.number_of_payments || undefined,
         startDate: hyp.start_date || undefined,
       })),
+
+      debts: (debtsData || []).map((d: any) => ({
+        id: Number(d.id),
+        name: d.name,
+        totalAmount: Number(d.total_amount),
+        prePaid: Number(d.pre_paid),
+        monthlyPayment: Number(d.monthly_payment),
+        icon: d.icon,
+        color: d.color,
+        dueDay: d.due_day
+    })),
     }
 
     return appData
@@ -239,6 +254,27 @@ export async function saveDataToSupabase(userId: string, data: AppData): Promise
     }
     results.hypotheticals = true;
   } catch (error) { console.error('Save Hypo Error', error); }
+
+  // 5. DEBTS
+  try {
+    // Basic overwrite strategy for debts (simplest for now)
+    await supabase.from('debts').delete().eq('user_id', userId);
+    if (data.debts && data.debts.length > 0) {
+        const { error } = await supabase.from('debts').insert(
+            data.debts.map((d: any) => ({
+                user_id: userId,
+                name: d.name,
+                total_amount: d.totalAmount,
+                pre_paid: d.prePaid,
+                monthly_payment: d.monthlyPayment,
+                icon: d.icon,
+                color: d.color,
+                due_day: d.dueDay
+            }))
+        );
+        if (error) throw error;
+    }
+  } catch (error) { console.error('Save Debts Error', error); }
 
   return results.budget && results.bills && results.transactions && results.hypotheticals;
 }

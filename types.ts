@@ -26,6 +26,7 @@ export interface Transaction {
     budget: Budget;
     bills: Bill[];
     transactions: Transaction[];
+    debts: Debt[]; // <--- NEW LINE
     dreamIslandHypotheticals: DreamIslandHypothetical[];
   }
 
@@ -38,6 +39,17 @@ export interface Transaction {
   totalAmount?: number;
   numberOfPayments?: number;
   startDate?: string;
+  }
+
+  export interface Debt {
+  id: number;
+  name: string;
+  totalAmount: number;
+  prePaid: number;
+  monthlyPayment: number;
+  icon: string;
+  color: string;
+  dueDay: string;
 }
   
   export type TabType = 'dashboard' | 'calendar' | 'rent' | 'spending' | 'debt' | 'transactions' | 'settings' | 'fun' | 'dreamIsland';
@@ -60,5 +72,6 @@ export interface Transaction {
       {id:13,name:"Chase Credit Card",amount:75.00,day:28}
     ],
     transactions: [],
+    debts: [], // <--- NEW LINE
     dreamIslandHypotheticals: [],
   };
