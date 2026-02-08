@@ -128,40 +128,63 @@ export async function saveDataToSupabase(userId: string, data: AppData): Promise
   }
 
   // ============== BILLS ==============
-  try {
-    console.log('🗑️ Deleting old bills...');
-    await supabase.from('bills').delete().eq('user_id', userId);
-    
-    if (data.bills && data.bills.length > 0) {
-      console.log(`📤 Inserting ${data.bills.length} bills...`);
-      
-      const billsToInsert = data.bills.map((bill: any) => ({
-        user_id: userId,
-        bill_id: parseInt(String(bill.id)),
-        name: String(bill.name),
-        amount: parseFloat(String(bill.amount)),
-        due_date: parseInt(String(bill.day || bill.dueDate || 1)),
-        category: '',
-      }));
-
-      console.log('First bill:', JSON.stringify(billsToInsert[0]));
-
-      const { error: billsError } = await supabase
-        .from('bills')
-        .insert(billsToInsert);
-
-      if (billsError) throw billsError;
-      
-      results.bills = true;
-      console.log('✅ Bills inserted');
-    } else {
-      results.bills = true;
-      console.log('✅ No bills to insert');
-    }
-  } catch (error) {
-    console.error('❌ Bills save failed:', error);
-    // Continue anyway
+try {
+  console.log('🗑️ Deleting old bills...');
+  const { error: deleteBillsError } = await supabase
+    .from('bills')
+    .delete()
+    .eq('user_id', userId);
+  
+  if (deleteBillsError) {
+    console.error('Delete bills error:', deleteBillsError);
   }
+  
+  if (data.bills && data.bills.length > 0) {
+    console.log(`📤 Inserting ${data.bills.length} bills...`);
+    
+    const billsToInsert = data.bills.map((bill: any) => {
+      const billId = parseInt(String(bill.id));
+      const amount = parseFloat(String(bill.amount));
+      const dueDate = parseInt(String(bill.day || bill.dueDate || 1));
+      
+      // Validate ranges
+      if (billId < 0 || billId > 1000) {
+        console.warn(`Invalid bill_id: ${billId}, using 0`);
+      }
+      if (dueDate < 1 || dueDate > 31) {
+        console.warn(`Invalid due_date: ${dueDate}, using 1`);
+      }
+      
+      return {
+        user_id: userId,
+        bill_id: Math.max(0, Math.min(1000, billId)), // Clamp between 0-1000
+        name: String(bill.name || 'Unknown'),
+        amount: amount,
+        due_date: Math.max(1, Math.min(31, dueDate)), // Clamp between 1-31
+        category: '',
+      };
+    });
+
+    console.log('Bills to insert:', JSON.stringify(billsToInsert, null, 2));
+
+    const { error: billsError, data: insertedBills } = await supabase
+      .from('bills')
+      .insert(billsToInsert);
+
+    if (billsError) {
+      console.error('Bills insert error details:', JSON.stringify(billsError, null, 2));
+      throw billsError;
+    }
+    
+    results.bills = true;
+    console.log('✅ Bills inserted:', insertedBills);
+  } else {
+    results.bills = true;
+    console.log('✅ No bills to insert');
+  }
+} catch (error) {
+  console.error('❌ Bills save failed:', error);
+}
 
   // ============== TRANSACTIONS ==============
   try {
