@@ -12,6 +12,7 @@ export interface Transaction {
     amount: number;
     day: number;
     manualPaid?: string[]; // Array of "YYYY-MM" strings
+    dueDate?: number;
   }
   
   export interface Budget {

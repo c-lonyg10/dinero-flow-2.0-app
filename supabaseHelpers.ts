@@ -60,7 +60,7 @@ export async function loadDataFromSupabase(userId: string): Promise<AppData | nu
         name: bill.name,
         amount: Number(bill.amount),
         day: bill.due_date,
-        manualPaid: [],
+        manualPaid: bill.manual_paid || [], // <--- UPDATED: Load the Paid History
       })),
       transactions: (transactionsData || []).map((tx: any) => {
         // Robust ID parsing: handles both "user_123" and raw "17700..." formats
@@ -76,7 +76,7 @@ export async function loadDataFromSupabase(userId: string): Promise<AppData | nu
           d: tx.date,
           t: tx.description,
           a: Number(tx.amount),
-          c: tx.category || '',
+          c: tx.category || 'Other', // <--- UPDATED: Load the Category or default to Other
         };
       }),
       dreamIslandHypotheticals: (hypotheticalsData || []).map((hyp: any) => ({
@@ -152,7 +152,7 @@ export async function saveDataToSupabase(userId: string, data: AppData): Promise
             name: String(bill.name || 'Unknown'),
             amount: parseFloat(String(bill.amount)),
             due_date: Number(bill.day || bill.dueDate || 1),
-            category: '',
+            manual_paid: bill.manualPaid || [], // <--- UPDATED: Save the Paid History
         }));
 
         const { error } = await supabase.from('bills').upsert(billsToUpsert, { onConflict: 'user_id, bill_id' });
@@ -204,7 +204,7 @@ export async function saveDataToSupabase(userId: string, data: AppData): Promise
             description: String(tx.t || tx.description || 'Unknown'),
             amount: parseFloat(String(tx.a || tx.amount || 0)),
             date: String(tx.d || tx.date || '2026-01-01'),
-            category: String(tx.c || tx.category || ''),
+            category: String(tx.c || 'Other'), // <--- UPDATED: Save the Category Edit
             };
         });
 
