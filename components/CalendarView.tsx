@@ -62,7 +62,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   const bill2 = data.bills.find(b => b.id === 9); // Flex Finance (Wave 2)
   const isWave1Paid = bill1?.manualPaid?.includes(monthKey);
   const isWave2Paid = bill2?.manualPaid?.includes(monthKey);
-  // ------------------------------------------
 
   // Month Dropdown
   const monthOptions = [-1, 0, 1, 2, 3, 4, 5].map(i => {
@@ -91,10 +90,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   return (
     <div className="min-h-[100dvh] pb-24">
       {/* FIXED HEADER SECTION 
-        - '-mt-4 -mx-4': Pulls the header UP and OUT to cover the parent padding.
-          - 'px-6': Aligns text with the Global App Header (which uses px-6).
+        - Removed negative margins (-mt-4) because App.tsx now handles padding.
+        - Added standard padding (px-6 pt-4) to match the global header.
+        - 'sticky top-0': Now sticks to the TRUE top of the scroll container.
       */}
-      <div className="pt-4 pb-4 px-6 flex justify-between items-center bg-black sticky top-0 z-50 -mt-4 -mx-4 shadow-lg shadow-black/50">
+      <div className="pt-4 pb-4 px-6 flex justify-between items-center bg-black sticky top-0 z-50 shadow-lg shadow-black/50">
         
         {/* Left: Standard Title */}
         <h2 className="text-2xl font-extrabold text-white flex items-center gap-2">
@@ -124,7 +124,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
       </div>
 
       {/* SCROLLABLE CONTENT */}
-      <div className="space-y-8 px-1 pb-10 mt-4">
+      <div className="space-y-8 px-4 pb-10 mt-2">
           
           {/* 1. CALENDAR GRID */}
           <div className="bg-[#171717] rounded-3xl overflow-hidden p-1 shadow-xl border border-[#262626]">
