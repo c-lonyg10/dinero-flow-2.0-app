@@ -1,6 +1,6 @@
 import React from 'react';
 import { AppData, Bill } from '../types';
-import { Plus, ChevronDown, Home, CheckCircle2, Clock } from 'lucide-react';
+import { Plus, ChevronDown, Home, CheckCircle2, Clock, Calendar as CalendarIcon } from 'lucide-react';
 
 interface CalendarViewProps {
   data: AppData;
@@ -90,27 +90,40 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
   return (
     <div className="min-h-[100dvh] pb-24">
-      {/* Header */}
+      {/* FIXED HEADER SECTION 
+        - Uses 'sticky top-0 z-50 bg-black' to prevent gaps when scrolling.
+        - Split into Title (Left) and Controls (Right).
+      */}
       <div className="pt-4 px-1 pb-4 flex justify-between items-center bg-black sticky top-0 z-50">
-        <div className="relative z-20">
-             <select 
-                value={monthOffset}
-                onChange={(e) => setMonthOffset(Number(e.target.value))}
-                className="appearance-none bg-transparent text-2xl font-bold text-white pr-8 outline-none cursor-pointer hover:opacity-80 transition-opacity"
-            >
-                {monthOptions.map(opt => (
-                    <option key={opt.value} value={opt.value} className="text-black text-sm">{opt.label}</option>
-                ))}
-            </select>
-            <ChevronDown size={20} className="absolute right-0 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
-        </div>
+        
+        {/* Left: Standard Title */}
+        <h2 className="text-2xl font-extrabold text-white flex items-center gap-2">
+            <CalendarIcon className="text-blue-500" /> Bill Calendar
+        </h2>
 
-        <button onClick={() => onOpenBillModal()} className="p-2 bg-white text-black rounded-xl hover:bg-neutral-200 transition-colors">
-          <Plus size={24} />
-        </button>
+        {/* Right: Bubble Dropdown + Add Button */}
+        <div className="flex items-center gap-2">
+             {/* The "Bubble" Dropdown (Identical style to SpendingView) */}
+             <div className="relative z-20">
+                 <select 
+                    value={monthOffset}
+                    onChange={(e) => setMonthOffset(Number(e.target.value))}
+                    className="appearance-none bg-neutral-900 text-neutral-400 pl-3 pr-8 py-2 rounded-full border border-neutral-800 text-xs font-bold outline-none focus:border-neutral-600 cursor-pointer hover:bg-neutral-800 transition-colors"
+                >
+                    {monthOptions.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                </select>
+                <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
+            </div>
+
+            <button onClick={() => onOpenBillModal()} className="p-2 bg-white text-black rounded-full hover:bg-neutral-200 transition-colors">
+                <Plus size={20} />
+            </button>
+        </div>
       </div>
 
-      {/* CONTENT */}
+      {/* SCROLLABLE CONTENT */}
       <div className="space-y-8 px-1 pb-10">
           
           {/* 1. CALENDAR GRID */}
