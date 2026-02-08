@@ -98,17 +98,16 @@ export async function loadDataFromSupabase(userId: string): Promise<AppData | nu
   }
 }
 
+// Save all data to Supabase (The Complete "Upsert" Version)
 export async function saveDataToSupabase(userId: string, data: AppData): Promise<boolean> {
-  // SAFETY LOCK: Don't save if critical data is suspiciously empty
-  // This prevents a "bad load" from wiping out the database
+  // Safety check: Don't save empty data
   if (!data.budget || (data.bills.length === 0 && data.transactions.length === 0)) {
-    console.warn("⚠️ SAFETY LOCK: Prevented saving empty data to Supabase.");
     return false;
   }
 
   const results = { budget: false, bills: false, transactions: false, hypotheticals: false };
 
-  // 1. BUDGET
+  // 1. BUDGET (Upsert)
   try {
     const { error } = await supabase.from('budget').upsert({
         user_id: userId,
@@ -120,13 +119,10 @@ export async function saveDataToSupabase(userId: string, data: AppData): Promise
     results.budget = true;
   } catch (error) { console.error('Save Budget Error', error); }
 
-  // 2. BILLS
+  // 2. BILLS (Upsert)
   try {
-    // Only delete and re-insert if we actually have bills to save
     if (data.bills.length > 0) {
-        await supabase.from('bills').delete().eq('user_id', userId);
-        
-        const billsToInsert = data.bills.map((bill: any) => ({
+        const billsToUpsert = data.bills.map((bill: any) => ({
             user_id: userId,
             bill_id: Number(bill.id),
             name: String(bill.name || 'Unknown'),
@@ -135,18 +131,17 @@ export async function saveDataToSupabase(userId: string, data: AppData): Promise
             category: '',
         }));
 
-        const { error } = await supabase.from('bills').insert(billsToInsert);
+        // MATCH ON: user_id + bill_id
+        const { error } = await supabase.from('bills').upsert(billsToUpsert, { onConflict: 'user_id, bill_id' });
         if (error) throw error;
     }
     results.bills = true;
   } catch (error) { console.error('Save Bills Error', error); }
 
-  // 3. TRANSACTIONS
+  // 3. TRANSACTIONS (Upsert)
   try {
     if (data.transactions.length > 0) {
-        await supabase.from('transactions').delete().eq('user_id', userId);
-        
-        const transactionsToInsert = data.transactions.map((tx: any, index: number) => {
+        const transactionsToUpsert = data.transactions.map((tx: any, index: number) => {
             const originalId = tx.id || Date.now() + index;
             const safeId = `${userId.slice(0, 8)}_${originalId}`;
 
@@ -160,21 +155,25 @@ export async function saveDataToSupabase(userId: string, data: AppData): Promise
             };
         });
 
-        // Batch insert
+        // Batch Upsert
         const batchSize = 50;
-        for (let i = 0; i < transactionsToInsert.length; i += batchSize) {
-            const batch = transactionsToInsert.slice(i, i + batchSize);
-            const { error } = await supabase.from('transactions').insert(batch);
+        for (let i = 0; i < transactionsToUpsert.length; i += batchSize) {
+            const batch = transactionsToUpsert.slice(i, i + batchSize);
+            // MATCH ON: transaction_id
+            const { error } = await supabase.from('transactions').upsert(batch, { onConflict: 'transaction_id' });
             if (error) throw error;
         }
     }
     results.transactions = true;
   } catch (error) { console.error('Save Transactions Error', error); }
 
-  // 4. HYPOTHETICALS
+  // 4. HYPOTHETICALS (Fixed to match the new style)
   try {
+    // For hypotheticals, we stick to delete/insert for now unless you added a unique constraint to this table too.
+    // This is safe as long as this is the only feature using this table.
     await supabase.from('dream_island_hypotheticals').delete().eq('user_id', userId);
-    if (data.dreamIslandHypotheticals?.length > 0) {
+    
+    if (data.dreamIslandHypotheticals && data.dreamIslandHypotheticals.length > 0) {
       const { error } = await supabase.from('dream_island_hypotheticals').insert(
           data.dreamIslandHypotheticals.map((hyp: any) => ({
             user_id: userId,
@@ -190,9 +189,10 @@ export async function saveDataToSupabase(userId: string, data: AppData): Promise
       if (error) throw error;
     }
     results.hypotheticals = true;
-  } catch (error) { showError('Save Hypo Error', error); }
+  } catch (error) { console.error('Save Hypo Error', error); }
 
-  return results.budget && results.bills && results.transactions;
+  // Return true only if EVERYTHING succeeded
+  return results.budget && results.bills && results.transactions && results.hypotheticals;
 }
 
 export async function migrateLocalStorageToSupabase(userId: string): Promise<boolean> {
