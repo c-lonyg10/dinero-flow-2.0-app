@@ -98,7 +98,7 @@ export async function loadDataFromSupabase(userId: string): Promise<AppData | nu
   }
 }
 
-// Save all data to Supabase (The Complete "Upsert" Version)
+// Save all data to Supabase (Smart Sync: Upsert + Delete Missing)
 export async function saveDataToSupabase(userId: string, data: AppData): Promise<boolean> {
   // Safety check: Don't save empty data
   if (!data.budget || (data.bills.length === 0 && data.transactions.length === 0)) {
@@ -119,9 +119,33 @@ export async function saveDataToSupabase(userId: string, data: AppData): Promise
     results.budget = true;
   } catch (error) { console.error('Save Budget Error', error); }
 
-  // 2. BILLS (Upsert)
+  // 2. BILLS (Garbage Collect + Upsert)
   try {
     if (data.bills.length > 0) {
+        // A. Garbage Collection: Delete bills from DB that are no longer in the app
+        const localBillIds = new Set(data.bills.map((b: any) => Number(b.id)));
+        
+        // Fetch current DB IDs for this user
+        const { data: serverBills } = await supabase
+            .from('bills')
+            .select('bill_id')
+            .eq('user_id', userId);
+
+        if (serverBills) {
+            const idsToDelete = serverBills
+                .map(row => row.bill_id)
+                .filter(id => !localBillIds.has(id)); // If DB has it but App doesn't -> Delete it
+
+            if (idsToDelete.length > 0) {
+                await supabase
+                    .from('bills')
+                    .delete()
+                    .eq('user_id', userId)
+                    .in('bill_id', idsToDelete);
+            }
+        }
+
+        // B. Upsert the current list
         const billsToUpsert = data.bills.map((bill: any) => ({
             user_id: userId,
             bill_id: Number(bill.id),
@@ -131,16 +155,45 @@ export async function saveDataToSupabase(userId: string, data: AppData): Promise
             category: '',
         }));
 
-        // MATCH ON: user_id + bill_id
         const { error } = await supabase.from('bills').upsert(billsToUpsert, { onConflict: 'user_id, bill_id' });
         if (error) throw error;
     }
     results.bills = true;
   } catch (error) { console.error('Save Bills Error', error); }
 
-  // 3. TRANSACTIONS (Upsert)
+  // 3. TRANSACTIONS (Garbage Collect + Upsert)
   try {
     if (data.transactions.length > 0) {
+        // A. Generate the "Safe IDs" for local transactions so we can compare
+        const localSafeIds = new Set(data.transactions.map((tx: any, index: number) => {
+             const originalId = tx.id || Date.now() + index; 
+             return `${userId.slice(0, 8)}_${originalId}`;
+        }));
+
+        // B. Fetch all Server Transaction IDs
+        const { data: serverRows } = await supabase
+             .from('transactions')
+             .select('transaction_id')
+             .eq('user_id', userId);
+
+        // C. Find the Zombies (IDs on Server but NOT in Local App)
+        if (serverRows) {
+            const zombies = serverRows
+                .map(r => r.transaction_id)
+                .filter(serverID => !localSafeIds.has(serverID));
+
+            // D. Kill the Zombies
+            if (zombies.length > 0) {
+                // Delete in batches to be safe
+                const batchSize = 50;
+                for (let i = 0; i < zombies.length; i += batchSize) {
+                    const batch = zombies.slice(i, i + batchSize);
+                    await supabase.from('transactions').delete().in('transaction_id', batch);
+                }
+            }
+        }
+
+        // E. Upsert (Save the good data)
         const transactionsToUpsert = data.transactions.map((tx: any, index: number) => {
             const originalId = tx.id || Date.now() + index;
             const safeId = `${userId.slice(0, 8)}_${originalId}`;
@@ -155,11 +208,9 @@ export async function saveDataToSupabase(userId: string, data: AppData): Promise
             };
         });
 
-        // Batch Upsert
         const batchSize = 50;
         for (let i = 0; i < transactionsToUpsert.length; i += batchSize) {
             const batch = transactionsToUpsert.slice(i, i + batchSize);
-            // MATCH ON: transaction_id
             const { error } = await supabase.from('transactions').upsert(batch, { onConflict: 'transaction_id' });
             if (error) throw error;
         }
@@ -167,10 +218,8 @@ export async function saveDataToSupabase(userId: string, data: AppData): Promise
     results.transactions = true;
   } catch (error) { console.error('Save Transactions Error', error); }
 
-  // 4. HYPOTHETICALS (Fixed to match the new style)
+  // 4. HYPOTHETICALS
   try {
-    // For hypotheticals, we stick to delete/insert for now unless you added a unique constraint to this table too.
-    // This is safe as long as this is the only feature using this table.
     await supabase.from('dream_island_hypotheticals').delete().eq('user_id', userId);
     
     if (data.dreamIslandHypotheticals && data.dreamIslandHypotheticals.length > 0) {
@@ -191,7 +240,6 @@ export async function saveDataToSupabase(userId: string, data: AppData): Promise
     results.hypotheticals = true;
   } catch (error) { console.error('Save Hypo Error', error); }
 
-  // Return true only if EVERYTHING succeeded
   return results.budget && results.bills && results.transactions && results.hypotheticals;
 }
 
