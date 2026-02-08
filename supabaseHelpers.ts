@@ -81,6 +81,13 @@ export async function loadDataFromSupabase(userId: string): Promise<AppData | nu
       })),
     }
 
+    console.log('🔍 LOADED DATA:', {
+  bills: appData.bills.length,
+  transactions: appData.transactions.length,
+  firstTransaction: appData.transactions[0],
+  budget: appData.budget
+});
+
     return appData
   } catch (error) {
     console.error('Error loading data from Supabase:', error)
