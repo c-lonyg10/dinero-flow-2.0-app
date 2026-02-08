@@ -91,10 +91,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   return (
     <div className="min-h-[100dvh] pb-24">
       {/* FIXED HEADER SECTION 
-        - Uses 'sticky top-0 z-50 bg-black' to prevent gaps when scrolling.
-        - Split into Title (Left) and Controls (Right).
+        - '-mt-4 -mx-4': Pulls the header UP and OUT to cover the parent padding.
+          - 'px-6': Aligns text with the Global App Header (which uses px-6).
       */}
-      <div className="pt-4 px-1 pb-4 flex justify-between items-center bg-black sticky top-0 z-50">
+      <div className="pt-4 pb-4 px-6 flex justify-between items-center bg-black sticky top-0 z-50 -mt-4 -mx-4 shadow-lg shadow-black/50">
         
         {/* Left: Standard Title */}
         <h2 className="text-2xl font-extrabold text-white flex items-center gap-2">
@@ -124,7 +124,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
       </div>
 
       {/* SCROLLABLE CONTENT */}
-      <div className="space-y-8 px-1 pb-10">
+      <div className="space-y-8 px-1 pb-10 mt-4">
           
           {/* 1. CALENDAR GRID */}
           <div className="bg-[#171717] rounded-3xl overflow-hidden p-1 shadow-xl border border-[#262626]">
