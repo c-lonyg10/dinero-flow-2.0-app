@@ -83,120 +83,138 @@ export async function loadDataFromSupabase(userId: string): Promise<AppData | nu
   }
 }
 
-// Save all data to Supabase
+// Save all data to Supabase with full error isolation
 export async function saveDataToSupabase(userId: string, data: AppData): Promise<boolean> {
+  const results = {
+    budget: false,
+    bills: false,
+    transactions: false,
+    hypotheticals: false
+  };
+
+  console.log('💾 Starting Supabase save for user:', userId);
+  console.log('📊 Data to save:', {
+    bills: data.bills?.length || 0,
+    transactions: data.transactions?.length || 0,
+    hypotheticals: data.dreamIslandHypotheticals?.length || 0
+  });
+
+  // ============== BUDGET ==============
   try {
-    console.log('💾 Starting Supabase save for user:', userId);
-    
-    // Save budget (upsert with proper conflict resolution)
     console.log('📤 Saving budget...');
     const { error: budgetError } = await supabase
       .from('budget')
       .upsert({
         user_id: userId,
-        starting_balance: data.budget.startingBalance,
-        avg_income: data.budget.avgIncome,
+        starting_balance: Number(data.budget.startingBalance),
+        avg_income: Number(data.budget.avgIncome),
         updated_at: new Date().toISOString(),
       }, { 
         onConflict: 'user_id'
-      })
+      });
 
-    if (budgetError) {
-      console.error('❌ Budget save error:', budgetError);
-      throw budgetError;
-    }
+    if (budgetError) throw budgetError;
+    
+    results.budget = true;
     console.log('✅ Budget saved');
+  } catch (error) {
+    console.error('❌ Budget save failed:', error);
+    // Continue anyway - don't let budget failure stop everything
+  }
 
-    // Delete existing bills first
+  // ============== BILLS ==============
+  try {
     console.log('🗑️ Deleting old bills...');
-    const { error: deleteBillsError } = await supabase
-      .from('bills')
-      .delete()
-      .eq('user_id', userId);
+    await supabase.from('bills').delete().eq('user_id', userId);
     
-    if (deleteBillsError) {
-      console.error('❌ Error deleting bills:', deleteBillsError);
-      throw deleteBillsError;
+    if (data.bills && data.bills.length > 0) {
+      console.log(`📤 Inserting ${data.bills.length} bills...`);
+      
+      const billsToInsert = data.bills.map((bill: any) => ({
+        user_id: userId,
+        bill_id: parseInt(String(bill.id)),
+        name: String(bill.name),
+        amount: parseFloat(String(bill.amount)),
+        due_date: parseInt(String(bill.day || bill.dueDate || 1)),
+        category: '',
+      }));
+
+      console.log('First bill:', JSON.stringify(billsToInsert[0]));
+
+      const { error: billsError } = await supabase
+        .from('bills')
+        .insert(billsToInsert);
+
+      if (billsError) throw billsError;
+      
+      results.bills = true;
+      console.log('✅ Bills inserted');
+    } else {
+      results.bills = true;
+      console.log('✅ No bills to insert');
     }
-    
-    // Insert new bills
-if (data.bills.length > 0) {
-  console.log(`📤 Inserting ${data.bills.length} bills...`);
-  
-  const billsToInsert = data.bills.map((bill: any) => {
-    // ONLY include fields that exist in Supabase schema
-    return {
-      user_id: userId,
-      bill_id: parseInt(String(bill.id)),
-      name: String(bill.name),
-      amount: parseFloat(String(bill.amount)),
-      due_date: parseInt(String(bill.day || bill.dueDate || 1)),
-      category: '', // Always empty string
-    };
-  });
-
-  console.log('First bill sample:', JSON.stringify(billsToInsert[0]));
-
-  const { error: billsError } = await supabase
-    .from('bills')
-    .insert(billsToInsert);
-
-  if (billsError) {
-    console.error('❌ Bills insert error:', billsError);
-    console.error('Error details:', JSON.stringify(billsError, null, 2));
-    console.error('First 3 bills that failed:', JSON.stringify(billsToInsert.slice(0, 3), null, 2));
-    throw billsError;
+  } catch (error) {
+    console.error('❌ Bills save failed:', error);
+    // Continue anyway
   }
-  console.log('✅ Bills inserted');
-}
 
-    // Delete existing transactions
+  // ============== TRANSACTIONS ==============
+  try {
     console.log('🗑️ Deleting old transactions...');
-    const { error: deleteTxError } = await supabase
-      .from('transactions')
-      .delete()
-      .eq('user_id', userId);
+    await supabase.from('transactions').delete().eq('user_id', userId);
     
-    if (deleteTxError) {
-      console.error('❌ Error deleting transactions:', deleteTxError);
-      throw deleteTxError;
+    if (data.transactions && data.transactions.length > 0) {
+      console.log(`📤 Inserting ${data.transactions.length} transactions...`);
+      
+      // CRITICAL FIX: Generate safe sequential IDs instead of using huge timestamps
+      const transactionsToInsert = data.transactions.map((tx: any, index: number) => {
+        // Ensure all values are properly typed and safe
+        const safeId = `${userId.slice(0, 8)}_${index}`;
+        
+        return {
+          user_id: userId,
+          transaction_id: safeId, // Safe unique ID
+          description: String(tx.t || tx.description || 'Unknown'),
+          amount: parseFloat(String(tx.a || tx.amount || 0)),
+          date: String(tx.d || tx.date || '2026-01-01'),
+          category: String(tx.c || tx.category || ''),
+        };
+      });
+
+      console.log('First 3 transactions:', JSON.stringify(transactionsToInsert.slice(0, 3), null, 2));
+
+      // Insert in batches to avoid overwhelming the database
+      const batchSize = 100;
+      for (let i = 0; i < transactionsToInsert.length; i += batchSize) {
+        const batch = transactionsToInsert.slice(i, i + batchSize);
+        console.log(`📤 Inserting batch ${Math.floor(i/batchSize) + 1} (${batch.length} transactions)...`);
+        
+        const { error: batchError } = await supabase
+          .from('transactions')
+          .insert(batch);
+
+        if (batchError) {
+          console.error(`❌ Batch ${Math.floor(i/batchSize) + 1} failed:`, batchError);
+          throw batchError;
+        }
+      }
+      
+      results.transactions = true;
+      console.log('✅ All transactions inserted');
+    } else {
+      results.transactions = true;
+      console.log('✅ No transactions to insert');
     }
-    
-    // Insert new transactions  
-if (data.transactions.length > 0) {
-  console.log(`📤 Inserting ${data.transactions.length} transactions...`);
-  
-  const transactionsToInsert = data.transactions.map((tx: any, index: number) => {
-    // Convert timestamp IDs to simple sequential IDs to avoid integer overflow
-    return {
-      user_id: userId,
-      transaction_id: `tx_${index}_${Date.now()}`, // Use a safe string ID format
-      description: String(tx.t || tx.description || 'Unknown'),
-      amount: parseFloat(String(tx.a || tx.amount || 0)),
-      date: String(tx.d || tx.date || '2026-01-01'),
-      category: String(tx.c || tx.category || ''),
-    };
-  });
-
-  console.log('First 3 transactions:', JSON.stringify(transactionsToInsert.slice(0, 3), null, 2));
-
-  const { error: transactionsError } = await supabase
-    .from('transactions')
-    .insert(transactionsToInsert);
-
-  if (transactionsError) {
-    console.error('❌ Transactions insert error:', transactionsError);
-    console.error('Error details:', JSON.stringify(transactionsError, null, 2));
-    throw transactionsError;
+  } catch (error) {
+    console.error('❌ Transactions save failed:', error);
+    // Continue anyway
   }
-  console.log('✅ Transactions inserted');
-}
 
-    // Delete existing hypotheticals
+  // ============== HYPOTHETICALS ==============
+  try {
     console.log('🗑️ Deleting old hypotheticals...');
     await supabase.from('dream_island_hypotheticals').delete().eq('user_id', userId);
     
-    // Insert new hypotheticals
     if (data.dreamIslandHypotheticals && data.dreamIslandHypotheticals.length > 0) {
       console.log(`📤 Inserting ${data.dreamIslandHypotheticals.length} hypotheticals...`);
       
@@ -205,28 +223,44 @@ if (data.transactions.length > 0) {
         .insert(
           data.dreamIslandHypotheticals.map((hyp: any) => ({
             user_id: userId,
-            name: hyp.name,
-            amount: hyp.amount,
-            type: hyp.type,
-            date: hyp.date,
-            total_amount: hyp.totalAmount,
-            number_of_payments: hyp.numberOfPayments,
-            start_date: hyp.startDate,
+            name: String(hyp.name),
+            amount: parseFloat(String(hyp.amount)),
+            type: String(hyp.type),
+            date: hyp.date ? String(hyp.date) : null,
+            total_amount: hyp.totalAmount ? parseFloat(String(hyp.totalAmount)) : null,
+            number_of_payments: hyp.numberOfPayments ? parseInt(String(hyp.numberOfPayments)) : null,
+            start_date: hyp.startDate ? String(hyp.startDate) : null,
           }))
         );
 
-      if (hypotheticalsError) {
-        console.error('❌ Hypotheticals insert error:', hypotheticalsError);
-        throw hypotheticalsError;
-      }
+      if (hypotheticalsError) throw hypotheticalsError;
+      
+      results.hypotheticals = true;
       console.log('✅ Hypotheticals inserted');
+    } else {
+      results.hypotheticals = true;
+      console.log('✅ No hypotheticals to insert');
     }
+  } catch (error) {
+    console.error('❌ Hypotheticals save failed:', error);
+  }
 
+  // ============== RESULTS ==============
+  console.log('📊 Save results:', results);
+  
+  const allSuccess = results.budget && results.bills && results.transactions && results.hypotheticals;
+  const someSuccess = results.budget || results.bills || results.transactions || results.hypotheticals;
+  
+  if (allSuccess) {
     console.log('✅✅✅ ALL DATA SAVED SUCCESSFULLY');
     return true;
-    
-  } catch (error) {
-    console.error('❌❌❌ SAVE FAILED:', error);
+  } else if (someSuccess) {
+    console.log('⚠️ PARTIAL SAVE - Some tables succeeded, some failed');
+    console.log('What succeeded:', Object.entries(results).filter(([k, v]) => v).map(([k]) => k));
+    console.log('What failed:', Object.entries(results).filter(([k, v]) => !v).map(([k]) => k));
+    return false;
+  } else {
+    console.log('❌❌❌ COMPLETE SAVE FAILURE');
     return false;
   }
 }
