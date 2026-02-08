@@ -57,13 +57,18 @@ export async function loadDataFromSupabase(userId: string): Promise<AppData | nu
         day: bill.due_date, // Maps due_date to day
         manualPaid: [], // Empty array as default
       })),
-      transactions: transactionsData.map((tx: any) => ({
-        id: parseInt(tx.transaction_id),
-        d: tx.date, // Maps date to d
-        t: tx.description, // Maps description to t
-        a: Number(tx.amount), // Maps amount to a
-        c: tx.category || '', // Maps category to c
-      })),
+      transactions: transactionsData.map((tx: any) => {
+  // Extract numeric ID from transaction_id (e.g., "20266bbf_103" → 103)
+  const numericId = parseInt(tx.transaction_id.split('_').pop() || '0');
+  
+  return {
+    id: numericId,
+    d: tx.date, // Maps date to d
+    t: tx.description, // Maps description to t
+    a: Number(tx.amount), // Maps amount to a
+    c: tx.category || '', // Maps category to c
+  };
+}),
       dreamIslandHypotheticals: hypotheticalsData.map((hyp: any) => ({
         id: hyp.id,
         name: hyp.name,
