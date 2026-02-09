@@ -20,6 +20,7 @@ export interface Transaction {
     annaContrib: number;
     rentTotal: number;
     startingBalance: number;
+    rentHistory: { [key: string]: number }; // <--- NEW LINE
   }
   
   export interface AppData {
@@ -55,7 +56,7 @@ export interface Transaction {
   export type TabType = 'dashboard' | 'calendar' | 'rent' | 'spending' | 'debt' | 'transactions' | 'settings' | 'fun' | 'dreamIsland';
   
   export const INITIAL_DATA: AppData = {
-    budget: { avgIncome: 1327.36, annaContrib: 300.00, rentTotal: 0, startingBalance: 0 },
+    budget: { avgIncome: 1327.36, annaContrib: 300.00, rentTotal: 0, startingBalance: 0, rentHistory: {} },
     bills: [
       {id:1,name:"Flex Rent",amount:500.00,day:1},
       {id:2,name:"Student Loans",amount:153.83,day:5},

@@ -183,8 +183,18 @@ useEffect(() => {
   };
 
   // Actions
-  const handleUpdateRent = (val: number) => {
-    setData(prev => ({ ...prev, budget: { ...prev.budget, rentTotal: val } }));
+  const handleUpdateRent = (val: number, monthKey: string) => {
+    setData(prev => ({ 
+      ...prev,
+      budget: {
+        ...prev.budget,
+        rentHistory: {
+          ...(prev.budget.rentHistory || {}),
+          [monthKey]: val
+        }, 
+        rentTotal: val 
+      } 
+    }));
   };
 
   const handleUpdateBudget = (key: string, val: number) => {
@@ -263,6 +273,7 @@ const handleRestoreData = async (file: File) => {
                     avgIncome: Number(restoredData.budget?.avgIncome || 0),
                     annaContrib: Number(restoredData.budget?.annaContrib || 0),
                     rentTotal: Number(restoredData.budget?.rentTotal || 0),
+                    rentHistory: restoredData.budget?.rentHistory || {}
                 },
                 bills: (restoredData.bills || []).map((bill: any) => ({
                     id: Number(bill.id),

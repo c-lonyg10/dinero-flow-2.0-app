@@ -66,7 +66,8 @@ export async function loadDataFromSupabase(userId: string): Promise<AppData | nu
         startingBalance: Number(budgetData.starting_balance),
         avgIncome: Number(budgetData.avg_income),
         annaContrib: 300.00,
-        rentTotal: 0,
+        rentTotal: Number(budgetData.rent_total || 0), // Ensure this fallback exists
+        rentHistory: budgetData.rent_history || {}, // <--- NEW LINE
       },
       bills: (billsData || []).map((bill: any) => ({
         id: Number(bill.bill_id), // No more clamping
@@ -135,6 +136,7 @@ export async function saveDataToSupabase(userId: string, data: AppData): Promise
         user_id: userId,
         starting_balance: Number(data.budget.startingBalance),
         avg_income: Number(data.budget.avgIncome),
+        rent_history: data.budget.rentHistory || {}, // <--- NEW LINE
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' });
     if (error) throw error;

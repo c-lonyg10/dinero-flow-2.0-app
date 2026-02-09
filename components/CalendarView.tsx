@@ -8,7 +8,7 @@ interface CalendarViewProps {
   monthOffset: number;
   setMonthOffset: (offset: number) => void;
   // Rent Props added here
-  onUpdateRent: (amount: number) => void;
+  onUpdateRent: (amount: number, monthKey: string) => void;
   onTogglePaid: (id: number) => void;
 }
 
@@ -45,14 +45,17 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   const monthKey = `${year}-${month}`;
 
   // --- RENT LOGIC (Migrated from RentView) ---
-  const totalRent = data.budget.rentTotal || 0;
+  const monthlyRent = data.budget.rentHistory?.[monthKey] !== undefined 
+      ? data.budget.rentHistory[monthKey] 
+      : (data.budget.rentTotal || 0);
+  
   const wave2Base = 600.00; 
   const wave2Fee = wave2Base * 0.01; 
   const wave2Total = wave2Base + wave2Fee; 
   
   let wave1Base = 0; 
-  if (totalRent > wave2Base) { 
-      wave1Base = totalRent - 600; 
+  if (monthlyRent > wave2Base) { 
+      wave1Base = monthlyRent - 600; 
   }
   const wave1Fee = wave1Base * 0.01; 
   const wave1Total = wave1Base + wave1Fee;
@@ -174,7 +177,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
           </div>
 
           {/* 2. RENT CONTROL SECTION */}
-          <div className="space-y-4 px-1">
+          <div className="space-y-4">
               <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
                   <Home className="text-cyan-500" size={24} /> Rent Control
               </h2>
@@ -183,8 +186,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                   <label className="block text-xs font-bold text-neutral-500 uppercase mb-2">Total Rent Bill</label>
                   <input 
                       type="number" 
-                      value={totalRent || ''} 
-                      onChange={(e) => onUpdateRent(parseFloat(e.target.value) || 0)}
+                      value={monthlyRent || ''}
+                      // PASS THE MONTH KEY TO THE UPDATE FUNCTION
+                      onChange={(e) => onUpdateRent(parseFloat(e.target.value) || 0, monthKey)}
                       className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-4 text-3xl font-black text-cyan-400 focus:border-neutral-500 focus:outline-none transition-colors" 
                       placeholder="0.00" 
                   />
