@@ -372,7 +372,7 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
   return (
     <div className="min-h-[100dvh] pb-24 bg-black">
       {/* Header */}
-      <div className="pt-4 px-1 pb-4 flex justify-between items-center bg-black sticky top-0 z-50 border-b border-purple-900/30">
+      <div className="pt-4 px-6 pb-4 flex justify-between items-center bg-black sticky top-0 z-50 border-b border-purple-900/30 shadow-lg shadow-black/50">
         <h2 className="text-2xl font-extrabold text-white flex items-center gap-2">
           <span className="text-3xl">🏝️</span> My Dream Island
         </h2>
@@ -388,7 +388,7 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
         </button>
       </div>
 
-      <div className="space-y-6 px-1 pt-4">
+      <div className="space-y-6 px-4 pt-4">
         {/* Current Reality Section */}
         <div className="bg-[#171717] border border-[#262626] rounded-3xl p-6 shadow-xl">
           <div className="flex items-center gap-2 mb-4">

@@ -679,7 +679,7 @@ const handleRestoreData = async (file: File) => {
         </button>
       </header>
 
-      <main className={`flex-1 overflow-y-auto w-full relative z-10 scroll-smooth ${activeTab === 'calendar' ? 'p-0' : 'px-4 pt-4'}`}>
+      <main className={`flex-1 overflow-y-auto w-full relative z-10 scroll-smooth ${(activeTab === 'calendar' || activeTab === 'dreamIsland')? 'p-0' : 'px-4 pt-4'}`}>
         <div className="max-w-lg mx-auto">
           {activeTab === 'dashboard' && <DashboardView data={data} onSwitchTab={setActiveTab} onOpenTxModal={() => { setEditingTx(null); setIsTxModalOpen(true); }} />}
           
