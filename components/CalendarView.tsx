@@ -1,13 +1,14 @@
 import React from 'react';
 import { AppData, Bill } from '../types';
 import { Plus, ChevronDown, Home, CheckCircle2, Clock, Calendar as CalendarIcon } from 'lucide-react';
+import { get2026MonthOptions } from '../dateHelpers';
+import { triggerHaptic } from '../haptics';
 
 interface CalendarViewProps {
   data: AppData;
   onOpenBillModal: (bill?: Bill) => void;
   monthOffset: number;
   setMonthOffset: (offset: number) => void;
-  // Rent Props added here
   onUpdateRent: (amount: number, monthKey: string) => void;
   onTogglePaid: (id: number) => void;
 }
@@ -68,17 +69,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   const isWave1Paid = bill1?.manualPaid?.includes(monthKey);
   const isWave2Paid = bill2?.manualPaid?.includes(monthKey);
 
-  // Month Dropdown
-  const monthOptions = [-1, 0, 1, 2, 3, 4, 5].map(i => {
-      const d = new Date();
-      d.setMonth(d.getMonth() - i);
-      return {
-          value: i,
-          label: i === 0 ? 'Current Month' :
-                 i === -1 ? 'Next Month' :
-                 d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-      };
-  });
+  // Month Dropdown (Unlocked for 2026)
+  const monthOptions = get2026MonthOptions();
   
   // Bill Status Logic
   const getBillStatus = (bill: Bill, day: number) => {
@@ -94,11 +86,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
   return (
     <div className="min-h-[100dvh] pb-24">
-      {/* FIXED HEADER SECTION 
-        - Removed negative margins (-mt-4) because App.tsx now handles padding.
-        - Added standard padding (px-6 pt-4) to match the global header.
-        - 'sticky top-0': Now sticks to the TRUE top of the scroll container.
-      */}
+      {/* FIXED HEADER SECTION */}
       <div className="pt-4 pb-4 px-6 flex justify-between items-center bg-black sticky top-0 z-50 shadow-lg shadow-black/50">
         
         {/* Left: Standard Title */}
@@ -108,11 +96,13 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
         {/* Right: Bubble Dropdown + Add Button */}
         <div className="flex items-center gap-2">
-             {/* The "Bubble" Dropdown (Identical style to SpendingView) */}
              <div className="relative z-20">
-                 <select 
-                    value={monthOffset}
-                    onChange={(e) => setMonthOffset(Number(e.target.value))}
+                <select 
+                    value={monthOffset} 
+                    onChange={(e) => {
+                        triggerHaptic('light');
+                        setMonthOffset(Number(e.target.value));
+                    }}
                     className="appearance-none bg-neutral-900 text-neutral-400 pl-3 pr-8 py-2 rounded-full border border-neutral-800 text-xs font-bold outline-none focus:border-neutral-600 cursor-pointer hover:bg-neutral-800 transition-colors"
                 >
                     {monthOptions.map(opt => (
@@ -122,7 +112,13 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                 <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
             </div>
 
-            <button onClick={() => onOpenBillModal()} className="p-2 bg-white text-black rounded-full hover:bg-neutral-200 transition-colors">
+            <button 
+                onClick={() => {
+                    triggerHaptic('light');
+                    onOpenBillModal();
+                }} 
+                className="p-2 bg-white text-black rounded-full hover:bg-neutral-200 transition-colors"
+            >
                 <Plus size={20} />
             </button>
         </div>
@@ -160,7 +156,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                        {dayBills.map(bill => (
                          <div 
                             key={bill.id} 
-                            onClick={() => onOpenBillModal(bill)}
+                            onClick={() => {
+                                triggerHaptic('light');
+                                onOpenBillModal(bill);
+                            }}
                             className={`text-[9px] px-1 py-0.5 rounded border w-full truncate cursor-pointer transition-opacity hover:opacity-80 ${getBillStatus(bill, day)}`}
                          >
                             {bill.name}
@@ -188,8 +187,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                   <label className="block text-xs font-bold text-neutral-500 uppercase mb-2">Total Rent Bill</label>
                   <input 
                       type="number" 
-                      value={monthlyRent || ''}
-                      // PASS THE MONTH KEY TO THE UPDATE FUNCTION
+                      value={monthlyRent || ''} 
                       onChange={(e) => onUpdateRent(parseFloat(e.target.value) || 0, monthKey)}
                       className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-4 text-3xl font-black text-cyan-400 focus:border-neutral-500 focus:outline-none transition-colors" 
                       placeholder="0.00" 

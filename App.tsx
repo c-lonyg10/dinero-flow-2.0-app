@@ -13,10 +13,11 @@ import YearView from './components/YearView';
 import DueBillsView from './components/DueBillsView';
 import { AppData, INITIAL_DATA, TabType, Transaction, Bill } from './types';
 import { X, Check, Trash2, AlertTriangle, ArrowRight } from 'lucide-react';
-import { supabase } from './supabaseClient'
-import Auth from './Auth'
-import type { User } from '@supabase/supabase-js'
-import { loadDataFromSupabase, saveDataToSupabase, migrateLocalStorageToSupabase } from './supabaseHelpers'
+import { supabase } from './supabaseClient';
+import Auth from './Auth';
+import type { User } from '@supabase/supabase-js';
+import { loadDataFromSupabase, saveDataToSupabase, migrateLocalStorageToSupabase } from './supabaseHelpers';
+import { triggerHaptic, triggerHapticSuccess } from './haptics';
 
 interface ImportConflict {
   newTx: Transaction;
@@ -24,8 +25,8 @@ interface ImportConflict {
 }
 
 const App: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const [data, setData] = useState<AppData>(INITIAL_DATA);
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
@@ -57,103 +58,88 @@ const App: React.FC = () => {
 
   // Check if user is logged in
   useEffect(() => {
-    // Get current session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
+      setUser(session?.user ?? null);
+    });
 
-    return () => subscription.unsubscribe()
-  }, [])
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Reset to dashboard when user logs in
-useEffect(() => {
-  if (user) {
-    setActiveTab('dashboard');
-  }
-}, [user]);
-
-    // Load data from Supabase when user logs in
-useEffect(() => {
-  if (!user) return;
-
-  const loadData = async () => {
-    // First, try to migrate localStorage data (one-time)
-    await migrateLocalStorageToSupabase(user.id);
-
-    // Then load data from Supabase
-    const supabaseData = await loadDataFromSupabase(user.id);
-    
-    if (supabaseData) {
-      setData(supabaseData);
-      hasLoadedRef.current = true;
-      console.log('✅ Data loaded from Supabase');
-    } else {
-      hasLoadedRef.current = true;
-      console.log('📝 No data in Supabase yet, using defaults');
+  useEffect(() => {
+    if (user) {
+      setActiveTab('dashboard');
     }
-  };
+  }, [user]);
 
-  loadData();
-}, [user]);
+  // Load data from Supabase when user logs in
+  useEffect(() => {
+    if (!user) return;
 
-// Save data to Supabase whenever it changes (but skip initial load)
-useEffect(() => {
-  if (!user) return;
-  
-  // Don't save until we've loaded data at least once
-  if (!hasLoadedRef.current) {
-    return;
-  }
-  
-  // Skip the very first save after loading
-  if (isInitialLoadRef.current) {
-    isInitialLoadRef.current = false;
-    return;
-  }
+    const loadData = async () => {
+      await migrateLocalStorageToSupabase(user.id);
+      const supabaseData = await loadDataFromSupabase(user.id);
+      
+      if (supabaseData) {
+        setData(supabaseData);
+        hasLoadedRef.current = true;
+        console.log('✅ Data loaded from Supabase');
+      } else {
+        hasLoadedRef.current = true;
+        console.log('📝 No data in Supabase yet, using defaults');
+      }
+    };
 
-  const saveData = async () => {
-    await saveDataToSupabase(user.id, data);
-    console.log('💾 Data saved to Supabase');
-  };
+    loadData();
+  }, [user]);
 
-  saveData();
-}, [data, user]);
+  // Save data to Supabase whenever it changes
+  useEffect(() => {
+    if (!user) return;
+    if (!hasLoadedRef.current) return;
+    if (isInitialLoadRef.current) {
+      isInitialLoadRef.current = false;
+      return;
+    }
 
-  // Show loading spinner while checking auth (OUTSIDE useEffect!)
+    const saveData = async () => {
+      await saveDataToSupabase(user.id, data);
+      console.log('💾 Data saved to Supabase');
+    };
+
+    saveData();
+  }, [data, user]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#171717] flex items-center justify-center">
         <div className="text-white text-xl">Loading...</div>
       </div>
-    )
+    );
   }
 
-  // Show login screen if not authenticated (OUTSIDE useEffect!)
   if (!user) {
-    return <Auth />
+    return <Auth />;
   }
 
   const handleLogoClick = () => {
-    // Increment click count
+    triggerHaptic('light');
     logoClickCountRef.current += 1;
 
-    // Clear existing timeout for click counter
     if (logoClickTimeoutRef.current) {
       clearTimeout(logoClickTimeoutRef.current);
     }
 
-    // Check for double tap
     if (logoClickCountRef.current === 2) {
-      // DOUBLE TAP - Open Dream Island
       logoClickCountRef.current = 0;
       setActiveTab('dreamIsland');
       setLogoText("CRC");
+      triggerHapticSuccess();
       if (logoTimeoutRef.current) {
         clearTimeout(logoTimeoutRef.current);
         logoTimeoutRef.current = null;
@@ -161,7 +147,6 @@ useEffect(() => {
       return;
     }
 
-    // Single tap - Cycle emoji
     if (logoTimeoutRef.current) {
       clearTimeout(logoTimeoutRef.current);
     }
@@ -176,21 +161,19 @@ useEffect(() => {
       logoTimeoutRef.current = null;
     }, 1500);
 
-    // Reset click counter after 500ms
     logoClickTimeoutRef.current = window.setTimeout(() => {
       logoClickCountRef.current = 0;
     }, 500);
   };
 
-  // Actions
   const handleUpdateRent = (val: number, monthKey: string) => {
     setData(prev => ({ 
-      ...prev,
-      budget: {
-        ...prev.budget,
-        rentHistory: {
-          ...(prev.budget.rentHistory || {}),
-          [monthKey]: val
+      ...prev, 
+      budget: { 
+        ...prev.budget, 
+        rentHistory: { 
+          ...(prev.budget.rentHistory || {}), 
+          [monthKey]: val 
         }, 
         rentTotal: val 
       } 
@@ -202,13 +185,12 @@ useEffect(() => {
   };
 
   const handleLogout = async () => {
-  try {
-    await supabase.auth.signOut();
-    // Auth state will update automatically via onAuthStateChange
-  } catch (error) {
-    console.error('Error logging out:', error);
-  }
-};
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
 
   const handleReset = () => {
     if(confirm("Reset all data?")) {
@@ -218,7 +200,6 @@ useEffect(() => {
     }
   };
 
-  // --- EXPORT FUNCTION ---
   const handleExportData = () => {
       const debts = localStorage.getItem('moneyflow_debts_v3');
       const exportObj = {
@@ -235,8 +216,7 @@ useEffect(() => {
       downloadAnchorNode.remove();
   };
 
-  // --- ROBUST RESTORE FUNCTION (Updated for your backup format) ---
-const handleRestoreData = async (file: File) => {
+  const handleRestoreData = async (file: File) => {
     if (!user) {
         alert("❌ You must be logged in to restore data!");
         return;
@@ -247,26 +227,14 @@ const handleRestoreData = async (file: File) => {
     }
 
     const reader = new FileReader();
-    
     reader.onload = async (e) => {
         try {
             const text = e.target?.result as string;
             if (!text) throw new Error("File is empty");
             
-            console.log('📦 Parsing JSON backup...');
             const parsed = JSON.parse(text);
-
-            // Extract appData (your format has appData wrapper)
             let restoredData = parsed.appData || parsed;
-            
-            console.log('📦 Backup contains:', {
-                bills: restoredData.bills?.length || 0,
-                transactions: restoredData.transactions?.length || 0,
-                balance: restoredData.budget?.startingBalance,
-                hasDebtData: !!parsed.debtData
-            });
 
-            // Validate and clean the data before sending to Supabase
             const cleanedData = {
                 budget: {
                     startingBalance: Number(restoredData.budget?.startingBalance || 0),
@@ -284,80 +252,50 @@ const handleRestoreData = async (file: File) => {
                 })),
                 transactions: (restoredData.transactions || []).map((tx: any) => ({
                     id: Number(tx.id),
-                    d: String(tx.d || '2026-01-01'), // date
-                    t: String(tx.t || 'Unknown'), // title/description
-                    a: Number(tx.a || 0), // amount
-                    c: String(tx.c || '') // category
+                    d: String(tx.d || '2026-01-01'),
+                    t: String(tx.t || 'Unknown'),
+                    a: Number(tx.a || 0),
+                    c: String(tx.c || '')
                 })),
-
                 debts: restoredData.debts || [],
-                
                 dreamIslandHypotheticals: restoredData.dreamIslandHypotheticals || []
             };
 
-            console.log('🧹 Cleaned data ready for upload');
-
-            // Save debt data to localStorage if present
             if (parsed.debtData) {
                 localStorage.setItem('moneyflow_debts_v3', JSON.stringify(parsed.debtData));
-                console.log('💾 Debt data saved to localStorage');
             }
 
-            // Upload to Supabase
-            console.log('📤 Uploading to Supabase...');
             const success = await saveDataToSupabase(user.id, cleanedData);
+            if (!success) throw new Error('Supabase save returned false');
             
-            if (!success) {
-                throw new Error('Supabase save returned false');
-            }
-            
-            console.log('✅ Successfully uploaded to Supabase!');
-            
-            // Update local state
             setData(cleanedData);
-            
-            // Show success and reload
-            alert(`✅ Restore Successful!\n\n` +
-                  `- ${cleanedData.bills.length} bills\n` +
-                  `- ${cleanedData.transactions.length} transactions\n` +
-                  `- Balance: $${cleanedData.budget.startingBalance}\n\n` +
-                  `Reloading app...`);
+            triggerHapticSuccess();
+            alert(`✅ Restore Successful!\n\n- ${cleanedData.bills.length} bills\n- ${cleanedData.transactions.length} transactions\n- Balance: $${cleanedData.budget.startingBalance}\n\nReloading app...`);
             
             setTimeout(() => {
                 window.location.reload();
             }, 2000);
-            
         } catch (err: any) {
             console.error('❌ Restore error:', err);
-            alert("❌ Restore Failed: " + err.message + "\n\nCheck browser console for details.");
+            alert("❌ Restore Failed: " + err.message);
         }
     };
-    
-    reader.onerror = () => {
-        alert("❌ Error reading file. Please try again.");
-    };
-
     reader.readAsText(file);
-};
+  };
 
-  // --- NEW: ARCHIVE FUNCTION ---
   const handleArchiveData = () => {
       const oneYearAgo = new Date();
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
       
       const oldTxs = data.transactions.filter(t => new Date(t.d) < oneYearAgo);
-      
       if (oldTxs.length === 0) {
           alert("No transactions older than 1 year to archive.");
           return;
       }
 
-      if (!confirm(`Found ${oldTxs.length} old transactions. Archive them to clean up your data? (Their total value will be added to your Starting Balance so your math stays correct).`)) return;
+      if (!confirm(`Found ${oldTxs.length} old transactions. Archive them to clean up your data?`)) return;
 
-      // Calculate net value of old transactions
       const netChange = oldTxs.reduce((sum, t) => sum + t.a, 0);
-
-      // Keep only new transactions
       const newTxs = data.transactions.filter(t => new Date(t.d) >= oneYearAgo);
       
       setData(prev => ({
@@ -365,10 +303,10 @@ const handleRestoreData = async (file: File) => {
           budget: { 
               ...prev.budget, 
               startingBalance: (prev.budget.startingBalance || 0) + netChange 
-          },
+          }, 
           transactions: newTxs
       }));
-      
+      triggerHapticSuccess();
       alert("Archive complete! Old data compacted into Starting Balance.");
   };
 
@@ -402,7 +340,6 @@ const handleRestoreData = async (file: File) => {
         if (!line) continue;
         
         const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/^"|"$/g, '').trim());
-        
         if (cols.length < 3) continue;
 
         let dateStr = cols[dateIdx];
@@ -418,13 +355,13 @@ const handleRestoreData = async (file: File) => {
         const amount = parseFloat(amountStr);
         
         let cat = 'Other';
-        const lowerDesc = desc.toLowerCase();
+        const lowerDesc = desc.toLowerCase().replace(/[\*_\-]/g, ' '); // Normalize symbols like WAL-MART -> wal mart
         
-        // --- CATEGORIZATION RULES ---
+        // --- SMART CATEGORIZATION RULES (EXPANDED FOR CHASE DESCRIPTORS) ---
         if (['guitar center', 'sweetwater', 'reverb', 'fender', 'gibson', 'strings', 'music', 'audio', 'pedal', 'amp', 'drum', 'thomann', 'sam ash', 'zounds'].some(k => lowerDesc.includes(k))) {
             cat = 'Music Gear';
         }
-        else if (['shell', 'exxon', 'mobil', 'qt', 'quik trip', 'quiktrip', 'race trac', 'racetrac', 'circle k', 'bp', 'chevron', 'texaco', 'sheetz', 'wawa', '7-eleven', 'citgo', 'murphy', 'love\'s', 'pilot'].some(k => lowerDesc.includes(k))) {
+        else if (['shell', 'exxon', 'mobil', 'qt', 'quik trip', 'quiktrip', 'race trac', 'racetrac', 'circle k', 'bp', 'chevron', 'texaco', 'sheetz', 'wawa', '7 eleven', 'citgo', 'murphy', 'love s', 'pilot', 'speedway', 'valero', 'marathon'].some(k => lowerDesc.includes(k))) {
             cat = 'Gas';
         }
         else if (['nike', 'adidas', 'tj maxx', 'ross', 'marshalls', 'gap', 'old navy', 'h&m', 'zara', 'uniqlo', 'goodwill', 'salvation army', 'plato', 'closet', 'apparel', 'clothing', 'shoe', 'foot locker'].some(k => lowerDesc.includes(k))) {
@@ -436,22 +373,22 @@ const handleRestoreData = async (file: File) => {
         else if (['etsy', 'flower', 'gift', 'hallmark', 'party city', 'present'].some(k => lowerDesc.includes(k))) {
             cat = 'Gifts';
         }
-        else if (['restaurant', 'cafe', 'coffee', 'starbucks', 'dunkin', 'mcdonalds', 'chick-fil-a', 'burger', 'taco', 'chipotle', 'pizza', 'eats', 'doordash', 'grubhub', 'uber eats', 'grill', 'bistro', 'steak', 'bar', 'dominos', 'bagel', 'ny bagel', 'dd/br', 'kfc', 'popeyes', 'wendy', 'sonic', 'subway', 'jersey mike', 'panera', 'sushi', 'diner'].some(k => lowerDesc.includes(k))) {
+        else if (['restaurant', 'cafe', 'coffee', 'starbucks', 'dunkin', 'mcdonald', 'chick fil a', 'burger', 'taco', 'chipotle', 'pizza', 'eats', 'doordash', 'grubhub', 'uber eats', 'grill', 'bistro', 'steak', 'bar', 'dominos', 'bagel', 'ny bagel', 'dd br', 'kfc', 'popeyes', 'wendy', 'sonic', 'subway', 'jersey mike', 'panera', 'sushi', 'diner', 'waffle house', 'cook out', 'culver', 'bojangles', 'zaxby'].some(k => lowerDesc.includes(k))) {
             cat = 'Dining';
         } 
-        else if (['grocery', 'market', 'kroger', 'whole foods', 'trader joe', 'publix', 'heb', 'harris teeter', 'wegmans', 'aldi', 'lidl', 'walmart', 'target', 'food lion', 'safeway', 'bj\'s', 'wholesale', 'sam\'s club', 'samsclub', 'sams club', 'costco', 'meijer', 'walgreens', 'cvs'].some(k => lowerDesc.includes(k))) {
+        else if (['grocery', 'market', 'kroger', 'whole foods', 'trader joe', 'publix', 'heb', 'harris teeter', 'wegmans', 'aldi', 'lidl', 'walmart', 'wal mart', 'wm supercenter', 'target', 'food lion', 'safeway', 'bj', 'wholesale', 'sam s club', 'sams club', 'costco', 'meijer', 'walgreens', 'cvs', 'dollar general', 'family dollar'].some(k => lowerDesc.includes(k))) {
             cat = 'Groceries';
         }
         else if (['amc', 'regal', 'cinema', 'movie', 'ticket', 'stubhub', 'seatgeek', 'eventbrite', 'golf', 'bowling', 'entertainment', 'hobby', 'toy', 'lego', 'party', 'club', 'vape', 'smoke', 'dispensary'].some(k => lowerDesc.includes(k))) {
             cat = 'For Fun'; 
         }
-        else if (lowerDesc.includes('flex finance') || lowerDesc.includes('getflex.com') || ['rent', 'lease', 'apartment', 'property'].some(k => lowerDesc.includes(k))) {
+        else if (lowerDesc.includes('flex finance') || lowerDesc.includes('getflex') || ['rent', 'lease', 'apartment', 'property'].some(k => lowerDesc.includes(k))) {
              cat = 'Rent';
         }
-        else if (['youtube', 'google', 'disney', 'hulu', 'netflix', 'spotify', 'apple', 'insurance', 'utilities', 'electric', 'water', 'internet', 'spectrum', 'att', 'verizon'].some(k => lowerDesc.includes(k))) {
+        else if (['youtube', 'google', 'disney', 'hulu', 'netflix', 'spotify', 'apple', 'insurance', 'utilities', 'electric', 'water', 'internet', 'spectrum', 'att', 'verizon', 'duke energy', 'piedmont'].some(k => lowerDesc.includes(k))) {
             cat = 'Bills';
         }
-        else if (['loan', 'payment', 'credit card', 'chase', 'amex', 'citi', 'discover', 'capital one', 'synchrony', 'affirm'].some(k => lowerDesc.includes(k))) {
+        else if (['loan', 'payment', 'credit card', 'chase', 'amex', 'citi', 'discover', 'capital one', 'synchrony', 'affirm', 'klarna'].some(k => lowerDesc.includes(k))) {
             cat = 'Debt';
         }
         else if (['payroll', 'deposit', 'salary', 'elevate'].some(k => lowerDesc.includes(k))) {
@@ -463,20 +400,18 @@ const handleRestoreData = async (file: File) => {
 
         parsedTxs.push({
             id: Date.now() + i, 
-            d: isoDate,
-            t: desc,
-            a: amount,
+            d: isoDate, 
+            t: desc, 
+            a: amount, 
             c: cat
         });
       }
 
-      // --- DUPLICATE DETECTION LOGIC ---
       const newQueue: Transaction[] = [];
       const conflicts: ImportConflict[] = [];
 
       parsedTxs.forEach(newTx => {
           const newDate = new Date(newTx.d).getTime();
-          
           const match = data.transactions.find(existing => {
               const exDate = new Date(existing.d).getTime();
               const diffTime = Math.abs(newDate - exDate);
@@ -501,6 +436,7 @@ const handleRestoreData = async (file: File) => {
               ...prev,
               transactions: [...prev.transactions, ...newQueue]
           }));
+          triggerHapticSuccess();
           alert(`Successfully imported ${newQueue.length} transactions.`);
       } else {
           alert("All transactions were duplicates or invalid.");
@@ -510,6 +446,7 @@ const handleRestoreData = async (file: File) => {
   };
 
   const resolveConflict = (conflict: ImportConflict, action: 'keep_old' | 'replace' | 'keep_both') => {
+      triggerHaptic('light');
       if (action === 'replace') {
           setData(prev => ({
               ...prev,
@@ -531,11 +468,13 @@ const handleRestoreData = async (file: File) => {
           }));
           setIsImportModalOpen(false);
           setImportQueue([]);
+          triggerHapticSuccess();
           alert("Import complete!");
       }
   };
 
   const resolveAll = (action: 'keep_old' | 'replace') => {
+      triggerHapticSuccess();
       if (action === 'replace') {
           const updates = new Map();
           importConflicts.forEach(c => {
@@ -579,12 +518,14 @@ const handleRestoreData = async (file: File) => {
               transactions: [...prev.transactions, { id: Date.now(), d: date, t: desc, a: amt, c: cat }]
           }));
       }
+      triggerHapticSuccess();
       setIsTxModalOpen(false);
       setEditingTx(null);
   };
 
   const deleteTransaction = () => {
       if(editingTx && confirm("Delete?")) {
+          triggerHaptic('medium');
           setData(prev => ({ ...prev, transactions: prev.transactions.filter(t => t.id !== editingTx.id) }));
           setIsTxModalOpen(false);
           setEditingTx(null);
@@ -609,20 +550,24 @@ const handleRestoreData = async (file: File) => {
             bills: [...prev.bills, { id: Date.now(), name, amount, day }]
         }));
     }
+    triggerHapticSuccess();
     setIsBillModalOpen(false);
     setEditingBill(null);
   };
 
   const deleteBill = () => {
       if(editingBill && confirm("Delete Bill?")) {
+          triggerHaptic('medium');
           setData(prev => ({ ...prev, bills: prev.bills.filter(b => b.id !== editingBill.id) }));
           setIsBillModalOpen(false);
           setEditingBill(null);
       }
   };
 
+  // WIRE HAPTIC FEEDBACK HERE FOR MODAL BILL PAID TOGGLE
   const toggleBillPaid = () => {
       if(!editingBill) return;
+      triggerHapticSuccess(); // TACTILE BUZZ FOR BILL PAID
       const d = new Date();
       d.setMonth(d.getMonth() - monthOffset); 
       const viewingMonthKey = d.getFullYear() + '-' + d.getMonth();
@@ -641,7 +586,9 @@ const handleRestoreData = async (file: File) => {
       setEditingBill(updatedBill);
   };
 
+  // WIRE HAPTIC FEEDBACK HERE FOR RENT OR INLINE BILL PAID TOGGLES
   const handleToggleBillId = (id: number) => {
+    triggerHapticSuccess(); // TACTILE BUZZ FOR RENT/BILL
     const d = new Date();
     d.setMonth(d.getMonth() - monthOffset);
     const viewingMonthKey = `${d.getFullYear()}-${d.getMonth()}`;
@@ -674,17 +621,23 @@ const handleRestoreData = async (file: File) => {
             <h2 className="text-xs text-neutral-500 font-bold uppercase tracking-widest">Dinero Flow</h2>
           </div>
         </div>
-        <button onClick={() => setActiveTab('settings')} className="p-1 rounded-full border border-neutral-700 bg-neutral-900 transition-transform active:scale-95">
+        <button 
+          onClick={() => {
+            triggerHaptic('light');
+            setActiveTab('settings');
+          }} 
+          className="p-1 rounded-full border border-neutral-700 bg-neutral-900 transition-transform active:scale-95"
+        >
            <div className="h-8 w-8 rounded-full bg-neutral-800 flex items-center justify-center text-neutral-400 font-bold text-xs">CC</div>
         </button>
       </header>
 
       <main className={`flex-1 overflow-y-auto w-full relative z-10 scroll-smooth ${(activeTab === 'calendar' || activeTab === 'dreamIsland')? 'p-0' : 'px-4 pt-4'}`}>
         <div className="max-w-lg mx-auto">
-          {activeTab === 'dashboard' && <DashboardView data={data} onSwitchTab={setActiveTab} onOpenTxModal={() => { setEditingTx(null); setIsTxModalOpen(true); }} />}
+          {activeTab === 'dashboard' && <DashboardView data={data} onSwitchTab={(tab) => { triggerHaptic('light'); setActiveTab(tab); }} onOpenTxModal={() => { setEditingTx(null); setIsTxModalOpen(true); }} />}
           
-          {(activeTab as any) === 'bills_today' && <DueBillsView data={data} mode="today" onBack={() => setActiveTab('dashboard')} />}
-          {(activeTab as any) === 'bills_week' && <DueBillsView data={data} mode="week" onBack={() => setActiveTab('dashboard')} />}
+          {(activeTab as any) === 'bills_today' && <DueBillsView data={data} mode="today" onBack={() => { triggerHaptic('light'); setActiveTab('dashboard'); }} />}
+          {(activeTab as any) === 'bills_week' && <DueBillsView data={data} mode="week" onBack={() => { triggerHaptic('light'); setActiveTab('dashboard'); }} />}
 
           {activeTab === 'calendar' && 
             <CalendarView 
@@ -713,14 +666,13 @@ const handleRestoreData = async (file: File) => {
                 data={data} 
                 monthOffset={monthOffset} 
                 setMonthOffset={setMonthOffset}
-                onBack={() => setActiveTab('dashboard')} 
-                onOpenYear={() => setActiveTab('year_review' as any)} // NEW
+                onBack={() => { triggerHaptic('light'); setActiveTab('dashboard'); }} 
+                onOpenYear={() => { triggerHaptic('light'); setActiveTab('year_review' as any); }}
              />
           }
 
-          {/* NEW: Year Review View */}
           {(activeTab as any) === 'year_review' && 
-            <YearView data={data} onBack={() => setActiveTab('categories')} />
+            <YearView data={data} onBack={() => { triggerHaptic('light'); setActiveTab('categories'); }} />
           }
 
           {activeTab === 'transactions' && 
@@ -738,7 +690,7 @@ const handleRestoreData = async (file: File) => {
                 monthOffset={monthOffset}
                 setMonthOffset={setMonthOffset}
                 onOpenTxModal={(t) => { setEditingTx(t || null); setIsTxModalOpen(true); }}
-                onBack={() => setActiveTab('dashboard')}
+                onBack={() => { triggerHaptic('light'); setActiveTab('dashboard'); }}
             />
           }
 
@@ -758,15 +710,15 @@ const handleRestoreData = async (file: File) => {
           {activeTab === 'dreamIsland' && 
             <DreamIslandView 
               data={data}
-              onExit={() => setActiveTab('dashboard')}
+              onExit={() => { triggerHaptic('light'); setActiveTab('dashboard'); }}
             />
           }
         </div>
       </main>
 
-      <Navbar activeTab={activeTab} onSwitch={setActiveTab} />
+      <Navbar activeTab={activeTab} onSwitch={(tab) => { triggerHaptic('light'); setActiveTab(tab); }} />
 
-      {/* Modals unchanged */}
+      {/* Modals */}
       {isTxModalOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-[#171717] border border-[#262626] rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
@@ -817,11 +769,11 @@ const handleRestoreData = async (file: File) => {
                         <span className="text-xs text-neutral-500 font-bold uppercase">Status</span>
                         {(() => {
                             const d = new Date();
-                            d.setMonth(d.getMonth() - monthOffset);
+                            d.setMonth(d.getMonth() - monthOffset); 
                             const key = `${d.getFullYear()}-${d.getMonth()}`;
                             return editingBill.manualPaid?.includes(key)
                                 ? <span className="text-xs font-bold text-emerald-400 bg-emerald-900/30 px-2 py-1 rounded">PAID</span>
-                                : <span className="text-xs font-bold text-red-400 bg-red-900/30 px-2 py-1 rounded">UNPAID</span>
+                                : <span className="text-xs font-bold text-red-400 bg-red-900/30 px-2 py-1 rounded">UNPAID</span>;
                         })()}
                    </div>
                    <button type="button" onClick={toggleBillPaid} className="w-full py-2 bg-blue-600/20 text-blue-400 font-bold text-xs rounded border border-blue-600/30 hover:bg-blue-600/30 transition-colors">

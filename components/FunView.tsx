@@ -1,6 +1,8 @@
 import React from 'react';
 import { AppData, Transaction } from '../types';
 import { PartyPopper, ArrowLeft, Edit2, ChevronDown } from 'lucide-react';
+import { get2026MonthOptions } from '../dateHelpers';
+import { triggerHaptic } from '../haptics';
 
 interface FunViewProps {
   data: AppData;
@@ -51,16 +53,7 @@ const FunView: React.FC<FunViewProps> = ({ data, monthOffset, setMonthOffset, on
   });
   const topFun = Object.entries(spots).sort((a, b) => b[1] - a[1])[0];
 
-  const monthOptions = [-1, 0, 1, 2, 3].map(i => {
-      const d = new Date();
-      d.setMonth(d.getMonth() - i);
-      return {
-          value: i,
-          label: i === 0 ? 'Current Month' :
-                 i === -1 ? 'Next Month' :
-                 d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-      };
-  });
+  const monthOptions = get2026MonthOptions();
 
   return (
     <div className="space-y-6 pb-6 animate-fade-in h-[100dvh] flex flex-col box-border">
@@ -81,7 +74,10 @@ const FunView: React.FC<FunViewProps> = ({ data, monthOffset, setMonthOffset, on
                 <div className="relative">
                      <select 
                         value={monthOffset}
-                        onChange={(e) => setMonthOffset(Number(e.target.value))}
+                        onChange={(e) => {
+    triggerHaptic('light');
+    setMonthOffset(Number(e.target.value));
+}}
                         className="appearance-none bg-neutral-900 text-neutral-400 pl-3 pr-8 py-1 rounded-full border border-neutral-800 text-xs font-bold outline-none focus:border-neutral-600 cursor-pointer hover:bg-neutral-800 transition-colors"
                     >
                         {monthOptions.map(opt => (

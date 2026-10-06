@@ -1,6 +1,7 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { AppData } from '../types';
-import { Settings, RefreshCw, Upload, Download, Trash2, Github, LogOut, History, Wallet, FileText, Cloud } from 'lucide-react';
+import { Settings, RefreshCw, Upload, Download, Trash2, Github, LogOut, History, Wallet, FileText, Cloud, Smartphone } from 'lucide-react';
+import { getHapticSettings, setHapticSettings, triggerHaptic, HapticIntensity } from '../haptics';
 
 interface SettingsViewProps {
   data: AppData;
@@ -26,6 +27,26 @@ const SettingsView: React.FC<SettingsViewProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const restoreInputRef = useRef<HTMLInputElement>(null);
 
+  // Haptic Feedback State
+  const initialSettings = getHapticSettings();
+  const [hapticsEnabled, setHapticsEnabledState] = useState<boolean>(initialSettings.enabled);
+  const [hapticIntensity, setHapticIntensityState] = useState<HapticIntensity>(initialSettings.intensity);
+
+  const toggleHaptics = () => {
+    const nextState = !hapticsEnabled;
+    setHapticsEnabledState(nextState);
+    setHapticSettings(nextState, hapticIntensity);
+    if (nextState) {
+      triggerHaptic(hapticIntensity);
+    }
+  };
+
+  const changeIntensity = (level: HapticIntensity) => {
+    setHapticIntensityState(level);
+    setHapticSettings(hapticsEnabled, level);
+    triggerHaptic(level); // Test vibration buzz immediately on click
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       onImport(e.target.files[0]);
@@ -36,7 +57,6 @@ const SettingsView: React.FC<SettingsViewProps> = ({
   const handleRestoreChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
           const file = e.target.files[0];
-          // Debug Alert to prove the button works
           alert(`File Selected: ${file.name}\nSize: ${file.size} bytes\n\nStarting restore...`);
           onRestore(file);
           e.target.value = ''; 
@@ -86,7 +106,6 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                     <RefreshCw size={18} /> Restore
                 </button>
             </div>
-            {/* REMOVED 'accept' ATTRIBUTE COMPLETELY to allow picking any file */}
             <input type="file" ref={restoreInputRef} onChange={handleRestoreChange} className="hidden" />
         </div>
 
@@ -131,6 +150,46 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                     />
                  </div>
             </div>
+        </div>
+
+        {/* 5. DEVICE & HAPTICS CARD (CYAN) */}
+        <div className="p-5 rounded-3xl border border-cyan-900/30 bg-cyan-950/20 shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                    <Smartphone className="text-cyan-400" size={24} />
+                    <div>
+                        <h3 className="font-bold text-lg text-white">Haptic Vibration</h3>
+                        <p className="text-xs text-neutral-400">Tactile buzz on taps, toggles & payments</p>
+                    </div>
+                </div>
+                <button
+                    onClick={toggleHaptics}
+                    className={`w-12 h-7 flex items-center rounded-full p-1 transition-colors ${hapticsEnabled ? 'bg-cyan-500 justify-end' : 'bg-neutral-800 justify-start'}`}
+                >
+                    <div className="bg-white w-5 h-5 rounded-full shadow-md"></div>
+                </button>
+            </div>
+
+            {hapticsEnabled && (
+                <div className="mt-4 pt-3 border-t border-cyan-900/40">
+                    <label className="block text-xs font-bold text-neutral-400 uppercase mb-2">Intensity</label>
+                    <div className="grid grid-cols-3 gap-2">
+                        {(['light', 'medium', 'heavy'] as HapticIntensity[]).map((level) => (
+                            <button
+                                key={level}
+                                onClick={() => changeIntensity(level)}
+                                className={`py-2 text-xs font-bold rounded-xl capitalize transition-colors ${
+                                    hapticIntensity === level
+                                        ? 'bg-cyan-500 text-black shadow-lg shadow-cyan-500/20'
+                                        : 'bg-neutral-900/80 text-neutral-400 border border-neutral-800 hover:bg-neutral-800'
+                                }`}
+                            >
+                                {level}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
 
         {/* Logout Button */}

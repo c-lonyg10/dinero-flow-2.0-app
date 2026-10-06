@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AppData, Transaction } from '../types';
 import { Plus, X, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { triggerHaptic, triggerHapticWarning, triggerHapticSuccess } from '../haptics';
 
 interface DreamIslandViewProps {
   data: AppData;
@@ -300,35 +301,37 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
   };
 
   const handleDelete = (id: number) => {
-    setHypotheticals(hypotheticals.filter(h => h.id !== id));
-  };
+  triggerHaptic('medium');
+  setHypotheticals(hypotheticals.filter(h => h.id !== id));
+};
 
   const handleReset = () => {
-    setHypotheticals([]);
-    setIncludeFixedBills(true);
-    setIncludeRent(true);
-    setIncludeFoodAnalysis(true);
-    setShowForecasted(true);
-    setForecastMonth(0);
-    setScreenshotWarningShown(false);
-  };
+  triggerHapticWarning(); // TACTILE WARNING BUZZ FOR CLEAR ALL
+  setHypotheticals([]);
+  setIncludeFixedBills(true);
+  setIncludeRent(true);
+  setIncludeFoodAnalysis(true);
+  setShowForecasted(true);
+  setForecastMonth(0);
+  setScreenshotWarningShown(false);
+};
 
   const handleExitWithPrompt = () => {
-    // Step 1: If there are hypotheticals and warning hasn't been shown yet
-    if (hypotheticals.length > 0 && !screenshotWarningShown) {
-      alert("📸 Take a screenshot of your forecast before leaving!\n\nThe X button will turn RED. Click it again when you're ready to exit.");
-      setScreenshotWarningShown(true);
-      return; // Stay on page
-    }
-    
-    // Step 2: Confirm exit (either no hypotheticals or warning already shown)
-    const confirmExit = confirm("Exit Dream Island?\n\nYour hypothetical expenses will be cleared.");
-    if (confirmExit) {
-      handleReset();
-      setScreenshotWarningShown(false); // Reset for next time
-      onExit();
-    }
-  };
+  triggerHaptic('light');
+  if (hypotheticals.length > 0 && !screenshotWarningShown) {
+    alert("📸 Take a screenshot of your forecast before leaving!\n\nThe X button will turn RED. Click it again when you're ready to exit.");
+    setScreenshotWarningShown(true);
+    return;
+  }
+
+  const confirmExit = confirm("Exit Dream Island?\n\nYour hypothetical expenses will be cleared.");
+  if (confirmExit) {
+    triggerHapticSuccess(); // TACTILE EXIT BUZZ
+    handleReset();
+    setScreenshotWarningShown(false);
+    onExit();
+  }
+};
 
   // Arcade Button Component
   const ArcadeButton: React.FC<{ label: string; isOn: boolean; onClick: () => void; colorScheme: 'green' | 'orange' | 'purple' }> = 
@@ -350,7 +353,10 @@ const DreamIslandView: React.FC<DreamIslandViewProps> = ({ data, onExit }) => {
 
       return (
         <button
-          onClick={onClick}
+          onClick={() => {
+            triggerHaptic('light');
+            onClick();
+          }}
           className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all active:scale-95 ${
             isOn 
               ? styles[colorScheme].on
