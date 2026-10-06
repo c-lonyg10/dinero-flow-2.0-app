@@ -50,14 +50,16 @@ const CalendarView: React.FC<CalendarViewProps> = ({
       : (data.budget.rentTotal || 0);
   
   const wave2Base = 600.00; 
-  const wave2Fee = wave2Base * 0.01; 
+  // Flex Split Fee is 3.0% on Wave 2 ($18.00 on $600 base)
+  const wave2Fee = wave2Base * 0.03; 
   const wave2Total = wave2Base + wave2Fee; 
   
   let wave1Base = 0; 
   if (monthlyRent > wave2Base) { 
       wave1Base = monthlyRent - 600; 
   }
-  const wave1Fee = wave1Base * 0.01; 
+  // Flex Membership ($5.99) + ~0.8808% Processing Fee ($12.92 total on $786.80)
+  const wave1Fee = wave1Base > 0 ? 5.99 + (wave1Base * 0.0088078) : 0; 
   const wave1Total = wave1Base + wave1Fee;
   const annaWave1 = Math.max(0, wave1Total - 500);
 
