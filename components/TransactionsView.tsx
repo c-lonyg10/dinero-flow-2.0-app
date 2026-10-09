@@ -99,6 +99,7 @@ const TransactionsView: React.FC<TransactionsViewProps> = ({ data, onOpenTxModal
           case 'Gas': return 'bg-yellow-900/30 text-yellow-400 border-yellow-500/30'; // Fuel Yellow
           case 'Clothes': return 'bg-fuchsia-900/30 text-fuchsia-400 border-fuchsia-500/30'; // Fashion Fuchsia
           case 'Gifts': return 'bg-rose-900/30 text-rose-400 border-rose-500/30'; // Rose Red
+          case 'Pets': return 'bg-amber-900/30 text-amber-400 border-amber-500/30'; // Amber for Nacho
           case 'For Fun': return 'bg-lime-900/30 text-lime-400 border-lime-500/30'; // Lime Green
           
           // Default

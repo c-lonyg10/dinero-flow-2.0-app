@@ -426,6 +426,9 @@ const App: React.FC = () => {
         else if (['venmo', 'zelle', 'cash app', 'paypal'].some(k => lowerDesc.includes(k))) {
           cat = amount > 0 ? 'Income' : 'Other'; 
         }
+        else if (['petco', 'petsmart', 'chewy', 'vet', 'animal hospital', 'barkbox', 'pet supplies', 'dog', 'pup', 'canine'].some(k => lowerDesc.includes(k))) {
+          cat = 'Pets';
+        }
 
         parsedTxs.push({
           id: Date.now() + i, 
@@ -766,6 +769,7 @@ const App: React.FC = () => {
                   <option>Electronics/Games</option>
                   <option>Music Gear</option>
                   <option>Gifts</option>
+                  <option>Pets</option>
                   <option>Rent</option>
                   <option>Bills</option>
                   <option>Debt</option>
