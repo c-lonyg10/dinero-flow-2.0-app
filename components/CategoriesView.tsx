@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { AppData } from '../types';
-import { ArrowLeft, TrendingUp, ChevronDown, Music, Home, Zap, Coffee, ShoppingBag, Gamepad2, Fuel, Shirt, Gift, Smile, DollarSign, CreditCard } from 'lucide-react';
+import { ArrowLeft, TrendingUp, ChevronDown, Music, Home, Zap, Coffee, ShoppingBag, Gamepad2, Fuel, Shirt, Gift, Smile, DollarSign, CreditCard, Dog } from 'lucide-react';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
 import { get2026MonthOptions } from '../dateHelpers';
 import { triggerHaptic } from '../haptics';
@@ -95,6 +95,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
           case 'Gas': return { color: '#eab308', icon: <Fuel size={18} /> }; // Yellow
           case 'Clothes': return { color: '#d946ef', icon: <Shirt size={18} /> }; // Fuchsia
           case 'Gifts': return { color: '#f43f5e', icon: <Gift size={18} /> }; // Rose
+          case 'Pets': return { color: '#f59e0b', icon: <Dog size={18} /> }; // Amber for Pets
           case 'For Fun': return { color: '#84cc16', icon: <Smile size={18} /> }; // Lime
           default: return { color: '#a3a3a3', icon: <DollarSign size={18} /> };
       }
@@ -119,11 +120,11 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
 
             <div className="relative">
                 <select 
-                    value={monthOffset}
+                    value={monthOffset} 
                     onChange={(e) => {
-    triggerHaptic('light');
-    setMonthOffset(Number(e.target.value));
-}}
+                        triggerHaptic('light');
+                        setMonthOffset(Number(e.target.value));
+                    }}
                     className="appearance-none bg-neutral-900 text-neutral-400 pl-3 pr-8 py-2 rounded-full border border-neutral-800 text-xs font-bold outline-none focus:border-neutral-600 cursor-pointer hover:bg-neutral-800 transition-colors"
                 >
                     {monthOptions.map(opt => (
@@ -134,7 +135,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
             </div>
         </div>
 
-        {/* DISCRETIONARY SPEND LABEL (Restored) */}
+        {/* DISCRETIONARY SPEND LABEL */}
         <div className="text-center pb-2 animate-fade-in">
             <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1">Discretionary Spend</p>
             <p className="text-4xl font-black text-white">${discretionarySpend.toFixed(0)}</p>
