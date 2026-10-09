@@ -18,6 +18,7 @@ import Auth from './Auth';
 import type { User } from '@supabase/supabase-js';
 import { loadDataFromSupabase, saveDataToSupabase, migrateLocalStorageToSupabase } from './supabaseHelpers';
 import { triggerHaptic, triggerHapticSuccess } from './haptics';
+import { LocalNotifications } from '@capacitor/local-notifications';
 
 interface ImportConflict {
   newTx: Transaction;
@@ -88,10 +89,8 @@ const App: React.FC = () => {
       if (supabaseData) {
         setData(supabaseData);
         hasLoadedRef.current = true;
-        console.log('✅ Data loaded from Supabase');
       } else {
         hasLoadedRef.current = true;
-        console.log('📝 No data in Supabase yet, using defaults');
       }
     };
 
@@ -109,22 +108,53 @@ const App: React.FC = () => {
 
     const saveData = async () => {
       await saveDataToSupabase(user.id, data);
-      console.log('💾 Data saved to Supabase');
     };
 
     saveData();
   }, [data, user]);
 
+  // Safely listen for notification taps
+  useEffect(() => {
+    let removeListener: (() => void) | undefined;
+    const setupListener = async () => {
+      try {
+        const handler = await LocalNotifications.addListener('localNotificationActionPerformed', (notification) => {
+          if (notification.notification.extra?.route === 'calendar') {
+            triggerHaptic('light');
+            setActiveTab('calendar');
+          }
+        });
+        removeListener = () => handler.remove();
+      } catch (err) {
+        // Fallback for unsupported environments
+      }
+    };
+    setupListener();
+
+    return () => {
+      if (removeListener) removeListener();
+    };
+  }, []);
+
+  // Early returns placed cleanly after all hooks
   if (loading) {
     return (
       <div className="min-h-screen bg-[#171717] flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
+        <div className="text-white text-xl font-bold">Loading Dinero Flow...</div>
       </div>
     );
   }
 
   if (!user) {
     return <Auth />;
+  }
+
+  if (!data || !data.budget || !data.transactions) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center p-6 text-center">
+        <div className="text-white font-bold">Loading dashboard data...</div>
+      </div>
+    );
   }
 
   const handleLogoClick = () => {
@@ -201,113 +231,113 @@ const App: React.FC = () => {
   };
 
   const handleExportData = () => {
-      const debts = localStorage.getItem('moneyflow_debts_v3');
-      const exportObj = {
-          appData: data,
-          debtData: debts ? JSON.parse(debts) : []
-      };
+    const debts = localStorage.getItem('moneyflow_debts_v3');
+    const exportObj = {
+      appData: data,
+      debtData: debts ? JSON.parse(debts) : []
+    };
 
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj));
-      const downloadAnchorNode = document.createElement('a');
-      downloadAnchorNode.setAttribute("href", dataStr);
-      downloadAnchorNode.setAttribute("download", "moneyflow_backup_" + new Date().toISOString().slice(0,10) + ".json");
-      document.body.appendChild(downloadAnchorNode);
-      downloadAnchorNode.click();
-      downloadAnchorNode.remove();
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", "moneyflow_backup_" + new Date().toISOString().slice(0,10) + ".json");
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
   };
 
   const handleRestoreData = async (file: File) => {
     if (!user) {
-        alert("❌ You must be logged in to restore data!");
-        return;
+      alert("❌ You must be logged in to restore data!");
+      return;
     }
 
     if (!file.name.endsWith('.json') && file.type !== 'application/json') {
-        if (!confirm(`The file "${file.name}" doesn't look like a JSON file. Try to restore anyway?`)) return;
+      if (!confirm(`The file "${file.name}" doesn't look like a JSON file. Try to restore anyway?`)) return;
     }
 
     const reader = new FileReader();
     reader.onload = async (e) => {
-        try {
-            const text = e.target?.result as string;
-            if (!text) throw new Error("File is empty");
-            
-            const parsed = JSON.parse(text);
-            let restoredData = parsed.appData || parsed;
+      try {
+        const text = e.target?.result as string;
+        if (!text) throw new Error("File is empty");
+        
+        const parsed = JSON.parse(text);
+        let restoredData = parsed.appData || parsed;
 
-            const cleanedData = {
-                budget: {
-                    startingBalance: Number(restoredData.budget?.startingBalance || 0),
-                    avgIncome: Number(restoredData.budget?.avgIncome || 0),
-                    annaContrib: Number(restoredData.budget?.annaContrib || 0),
-                    rentTotal: Number(restoredData.budget?.rentTotal || 0),
-                    rentHistory: restoredData.budget?.rentHistory || {}
-                },
-                bills: (restoredData.bills || []).map((bill: any) => ({
-                    id: Number(bill.id),
-                    name: String(bill.name || 'Unknown'),
-                    amount: Number(bill.amount || 0),
-                    day: Number(bill.day || bill.dueDate || 1),
-                    manualPaid: bill.manualPaid || []
-                })),
-                transactions: (restoredData.transactions || []).map((tx: any) => ({
-                    id: Number(tx.id),
-                    d: String(tx.d || '2026-01-01'),
-                    t: String(tx.t || 'Unknown'),
-                    a: Number(tx.a || 0),
-                    c: String(tx.c || '')
-                })),
-                debts: restoredData.debts || [],
-                dreamIslandHypotheticals: restoredData.dreamIslandHypotheticals || []
-            };
+        const cleanedData = {
+          budget: {
+            startingBalance: Number(restoredData.budget?.startingBalance || 0),
+            avgIncome: Number(restoredData.budget?.avgIncome || 0),
+            annaContrib: Number(restoredData.budget?.annaContrib || 0),
+            rentTotal: Number(restoredData.budget?.rentTotal || 0),
+            rentHistory: restoredData.budget?.rentHistory || {}
+          },
+          bills: (restoredData.bills || []).map((bill: any) => ({
+            id: Number(bill.id),
+            name: String(bill.name || 'Unknown'),
+            amount: Number(bill.amount || 0),
+            day: Number(bill.day || bill.dueDate || 1),
+            manualPaid: bill.manualPaid || []
+          })),
+          transactions: (restoredData.transactions || []).map((tx: any) => ({
+            id: Number(tx.id),
+            d: String(tx.d || '2026-01-01'),
+            t: String(tx.t || 'Unknown'),
+            a: Number(tx.a || 0),
+            c: String(tx.c || '')
+          })),
+          debts: restoredData.debts || [],
+          dreamIslandHypotheticals: restoredData.dreamIslandHypotheticals || []
+        };
 
-            if (parsed.debtData) {
-                localStorage.setItem('moneyflow_debts_v3', JSON.stringify(parsed.debtData));
-            }
-
-            const success = await saveDataToSupabase(user.id, cleanedData);
-            if (!success) throw new Error('Supabase save returned false');
-            
-            setData(cleanedData);
-            triggerHapticSuccess();
-            alert(`✅ Restore Successful!\n\n- ${cleanedData.bills.length} bills\n- ${cleanedData.transactions.length} transactions\n- Balance: $${cleanedData.budget.startingBalance}\n\nReloading app...`);
-            
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
-        } catch (err: any) {
-            console.error('❌ Restore error:', err);
-            alert("❌ Restore Failed: " + err.message);
+        if (parsed.debtData) {
+          localStorage.setItem('moneyflow_debts_v3', JSON.stringify(parsed.debtData));
         }
+
+        const success = await saveDataToSupabase(user.id, cleanedData);
+        if (!success) throw new Error('Supabase save returned false');
+        
+        setData(cleanedData);
+        triggerHapticSuccess();
+        alert(`✅ Restore Successful!\n\n- ${cleanedData.bills.length} bills\n- ${cleanedData.transactions.length} transactions\n- Balance: $${cleanedData.budget.startingBalance}\n\nReloading app...`);
+        
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } catch (err: any) {
+        console.error('❌ Restore error:', err);
+        alert("❌ Restore Failed: " + err.message);
+      }
     };
     reader.readAsText(file);
   };
 
   const handleArchiveData = () => {
-      const oneYearAgo = new Date();
-      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-      
-      const oldTxs = data.transactions.filter(t => new Date(t.d) < oneYearAgo);
-      if (oldTxs.length === 0) {
-          alert("No transactions older than 1 year to archive.");
-          return;
-      }
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    
+    const oldTxs = data.transactions.filter(t => new Date(t.d) < oneYearAgo);
+    if (oldTxs.length === 0) {
+      alert("No transactions older than 1 year to archive.");
+      return;
+    }
 
-      if (!confirm(`Found ${oldTxs.length} old transactions. Archive them to clean up your data?`)) return;
+    if (!confirm(`Found ${oldTxs.length} old transactions. Archive them to clean up your data?`)) return;
 
-      const netChange = oldTxs.reduce((sum, t) => sum + t.a, 0);
-      const newTxs = data.transactions.filter(t => new Date(t.d) >= oneYearAgo);
-      
-      setData(prev => ({
-          ...prev,
-          budget: { 
-              ...prev.budget, 
-              startingBalance: (prev.budget.startingBalance || 0) + netChange 
-          }, 
-          transactions: newTxs
-      }));
-      triggerHapticSuccess();
-      alert("Archive complete! Old data compacted into Starting Balance.");
+    const netChange = oldTxs.reduce((sum, t) => sum + t.a, 0);
+    const newTxs = data.transactions.filter(t => new Date(t.d) >= oneYearAgo);
+    
+    setData(prev => ({
+      ...prev,
+      budget: { 
+        ...prev.budget, 
+        startingBalance: (prev.budget.startingBalance || 0) + netChange 
+      }, 
+      transactions: newTxs
+    }));
+    triggerHapticSuccess();
+    alert("Archive complete! Old data compacted into Starting Balance.");
   };
 
   const handleImportCSV = (file: File) => {
@@ -325,21 +355,21 @@ const App: React.FC = () => {
       let dateIdx = 0, descIdx = 2, amtIdx = 5; 
       
       if (headerLine) {
-          const headers = headerLine.toLowerCase().split(',').map(h => h.replace(/^"|"$/g, '').trim());
-          const dIdx = headers.findIndex(h => h.includes('date'));
-          const descIdxFound = headers.findIndex(h => h.includes('description'));
-          const amtIdxFound = headers.findIndex(h => h.includes('amount'));
-          
-          if(dIdx !== -1) dateIdx = dIdx;
-          if(descIdxFound !== -1) descIdx = descIdxFound;
-          if(amtIdxFound !== -1) amtIdx = amtIdxFound;
+        const headers = headerLine.toLowerCase().split(',').map(h => h.replace(/^"|"$/g, '').trim());
+        const dIdx = headers.findIndex(h => h.includes('date'));
+        const descIdxFound = headers.findIndex(h => h.includes('description'));
+        const amtIdxFound = headers.findIndex(h => h.includes('amount'));
+        
+        if(dIdx !== -1) dateIdx = dIdx;
+        if(descIdxFound !== -1) descIdx = descIdxFound;
+        if(amtIdxFound !== -1) amtIdx = amtIdxFound;
       }
 
       for (let i = startIndex; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
         
-        const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/^"|"$/g, '').trim());
+        const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/^"\vert{}"$/g, '').trim());
         if (cols.length < 3) continue;
 
         let dateStr = cols[dateIdx];
@@ -355,55 +385,54 @@ const App: React.FC = () => {
         const amount = parseFloat(amountStr);
         
         let cat = 'Other';
-        const lowerDesc = desc.toLowerCase().replace(/[\*_\-]/g, ' '); // Normalize symbols like WAL-MART -> wal mart
-        
-        // --- SMART CATEGORIZATION RULES (EXPANDED FOR CHASE DESCRIPTORS) ---
+        const lowerDesc = desc.toLowerCase().replace(/[\*_\-]/g, ' ');
+
         if (['guitar center', 'sweetwater', 'reverb', 'fender', 'gibson', 'strings', 'music', 'audio', 'pedal', 'amp', 'drum', 'thomann', 'sam ash', 'zounds'].some(k => lowerDesc.includes(k))) {
-            cat = 'Music Gear';
+          cat = 'Music Gear';
         }
         else if (['shell', 'exxon', 'mobil', 'qt', 'quik trip', 'quiktrip', 'race trac', 'racetrac', 'circle k', 'bp', 'chevron', 'texaco', 'sheetz', 'wawa', '7 eleven', 'citgo', 'murphy', 'love s', 'pilot', 'speedway', 'valero', 'marathon'].some(k => lowerDesc.includes(k))) {
-            cat = 'Gas';
+          cat = 'Gas';
         }
         else if (['nike', 'adidas', 'tj maxx', 'ross', 'marshalls', 'gap', 'old navy', 'h&m', 'zara', 'uniqlo', 'goodwill', 'salvation army', 'plato', 'closet', 'apparel', 'clothing', 'shoe', 'foot locker'].some(k => lowerDesc.includes(k))) {
-            cat = 'Clothes';
+          cat = 'Clothes';
         }
         else if (['best buy', 'micro center', 'apple', 'nintendo', 'steam', 'playstation', 'xbox', 'gamestop', 'ubisoft', 'blizzard', 'epic games', 'electronic', 'tech'].some(k => lowerDesc.includes(k))) {
-            cat = 'Electronics/Games';
+          cat = 'Electronics/Games';
         }
         else if (['etsy', 'flower', 'gift', 'hallmark', 'party city', 'present'].some(k => lowerDesc.includes(k))) {
-            cat = 'Gifts';
+          cat = 'Gifts';
         }
         else if (['restaurant', 'cafe', 'coffee', 'starbucks', 'dunkin', 'mcdonald', 'chick fil a', 'burger', 'taco', 'chipotle', 'pizza', 'eats', 'doordash', 'grubhub', 'uber eats', 'grill', 'bistro', 'steak', 'bar', 'dominos', 'bagel', 'ny bagel', 'dd br', 'kfc', 'popeyes', 'wendy', 'sonic', 'subway', 'jersey mike', 'panera', 'sushi', 'diner', 'waffle house', 'cook out', 'culver', 'bojangles', 'zaxby'].some(k => lowerDesc.includes(k))) {
-            cat = 'Dining';
+          cat = 'Dining';
         } 
         else if (['grocery', 'market', 'kroger', 'whole foods', 'trader joe', 'publix', 'heb', 'harris teeter', 'wegmans', 'aldi', 'lidl', 'walmart', 'wal mart', 'wm supercenter', 'target', 'food lion', 'safeway', 'bj', 'wholesale', 'sam s club', 'sams club', 'costco', 'meijer', 'walgreens', 'cvs', 'dollar general', 'family dollar'].some(k => lowerDesc.includes(k))) {
-            cat = 'Groceries';
+          cat = 'Groceries';
         }
         else if (['amc', 'regal', 'cinema', 'movie', 'ticket', 'stubhub', 'seatgeek', 'eventbrite', 'golf', 'bowling', 'entertainment', 'hobby', 'toy', 'lego', 'party', 'club', 'vape', 'smoke', 'dispensary'].some(k => lowerDesc.includes(k))) {
-            cat = 'For Fun'; 
+          cat = 'For Fun'; 
         }
         else if (lowerDesc.includes('flex finance') || lowerDesc.includes('getflex') || ['rent', 'lease', 'apartment', 'property'].some(k => lowerDesc.includes(k))) {
-             cat = 'Rent';
+          cat = 'Rent';
         }
         else if (['youtube', 'google', 'disney', 'hulu', 'netflix', 'spotify', 'apple', 'insurance', 'utilities', 'electric', 'water', 'internet', 'spectrum', 'att', 'verizon', 'duke energy', 'piedmont'].some(k => lowerDesc.includes(k))) {
-            cat = 'Bills';
+          cat = 'Bills';
         }
         else if (['loan', 'payment', 'credit card', 'chase', 'amex', 'citi', 'discover', 'capital one', 'synchrony', 'affirm', 'klarna'].some(k => lowerDesc.includes(k))) {
-            cat = 'Debt';
+          cat = 'Debt';
         }
         else if (['payroll', 'deposit', 'salary', 'elevate'].some(k => lowerDesc.includes(k))) {
-            cat = 'Income';
+          cat = 'Income';
         }
         else if (['venmo', 'zelle', 'cash app', 'paypal'].some(k => lowerDesc.includes(k))) {
-            cat = amount > 0 ? 'Income' : 'Other'; 
+          cat = amount > 0 ? 'Income' : 'Other'; 
         }
 
         parsedTxs.push({
-            id: Date.now() + i, 
-            d: isoDate, 
-            t: desc, 
-            a: amount, 
-            c: cat
+          id: Date.now() + i, 
+          d: isoDate, 
+          t: desc, 
+          a: amount, 
+          c: cat
         });
       }
 
@@ -411,125 +440,125 @@ const App: React.FC = () => {
       const conflicts: ImportConflict[] = [];
 
       parsedTxs.forEach(newTx => {
-          const newDate = new Date(newTx.d).getTime();
-          const match = data.transactions.find(existing => {
-              const exDate = new Date(existing.d).getTime();
-              const diffTime = Math.abs(newDate - exDate);
-              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-              return existing.a === newTx.a && diffDays <= 4;
-          });
+        const newDate = new Date(newTx.d).getTime();
+        const match = data.transactions.find(existing => {
+          const exDate = new Date(existing.d).getTime();
+          const diffTime = Math.abs(newDate - exDate);
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+          return existing.a === newTx.a && diffDays <= 4;
+        });
 
-          if (match) {
-              if (match.t === newTx.t && match.d === newTx.d) return; 
-              conflicts.push({ newTx, existingTx: match });
-          } else {
-              newQueue.push(newTx);
-          }
+        if (match) {
+          if (match.t === newTx.t && match.d === newTx.d) return; 
+          conflicts.push({ newTx, existingTx: match });
+        } else {
+          newQueue.push(newTx);
+        }
       });
 
       if (conflicts.length > 0) {
-          setImportQueue(newQueue);
-          setImportConflicts(conflicts);
-          setIsImportModalOpen(true);
+        setImportQueue(newQueue);
+        setImportConflicts(conflicts);
+        setIsImportModalOpen(true);
       } else if (newQueue.length > 0) {
-          setData(prev => ({
-              ...prev,
-              transactions: [...prev.transactions, ...newQueue]
-          }));
-          triggerHapticSuccess();
-          alert(`Successfully imported ${newQueue.length} transactions.`);
+        setData(prev => ({
+          ...prev,
+          transactions: [...prev.transactions, ...newQueue]
+        }));
+        triggerHapticSuccess();
+        alert(`Successfully imported ${newQueue.length} transactions.`);
       } else {
-          alert("All transactions were duplicates or invalid.");
+        alert("All transactions were duplicates or invalid.");
       }
     };
     reader.readAsText(file);
   };
 
   const resolveConflict = (conflict: ImportConflict, action: 'keep_old' | 'replace' | 'keep_both') => {
-      triggerHaptic('light');
-      if (action === 'replace') {
-          setData(prev => ({
-              ...prev,
-              transactions: prev.transactions.map(t => t.id === conflict.existingTx.id ? { ...conflict.newTx, id: conflict.existingTx.id } : t)
-          }));
-      } else if (action === 'keep_both') {
-          setData(prev => ({
-              ...prev,
-              transactions: [...prev.transactions, conflict.newTx]
-          }));
-      }
-      const remaining = importConflicts.filter(c => c.newTx.id !== conflict.newTx.id);
-      setImportConflicts(remaining);
-      
-      if (remaining.length === 0) {
-          setData(prev => ({
-              ...prev,
-              transactions: [...prev.transactions, ...importQueue]
-          }));
-          setIsImportModalOpen(false);
-          setImportQueue([]);
-          triggerHapticSuccess();
-          alert("Import complete!");
-      }
+    triggerHaptic('light');
+    if (action === 'replace') {
+      setData(prev => ({
+        ...prev,
+        transactions: prev.transactions.map(t => t.id === conflict.existingTx.id ? { ...conflict.newTx, id: conflict.existingTx.id } : t)
+      }));
+    } else if (action === 'keep_both') {
+      setData(prev => ({
+        ...prev,
+        transactions: [...prev.transactions, conflict.newTx]
+      }));
+    }
+    const remaining = importConflicts.filter(c => c.newTx.id !== conflict.newTx.id);
+    setImportConflicts(remaining);
+    
+    if (remaining.length === 0) {
+      setData(prev => ({
+        ...prev,
+        transactions: [...prev.transactions, ...importQueue]
+      }));
+      setIsImportModalOpen(false);
+      setImportQueue([]);
+      triggerHapticSuccess();
+      alert("Import complete!");
+    }
   };
 
   const resolveAll = (action: 'keep_old' | 'replace') => {
-      triggerHapticSuccess();
-      if (action === 'replace') {
-          const updates = new Map();
-          importConflicts.forEach(c => {
-             updates.set(c.existingTx.id, { ...c.newTx, id: c.existingTx.id });
-          });
-          
-          setData(prev => ({
-              ...prev,
-              transactions: [
-                  ...prev.transactions.map(t => updates.has(t.id) ? updates.get(t.id) : t),
-                  ...importQueue
-              ]
-          }));
-      } else {
-           setData(prev => ({
-              ...prev,
-              transactions: [...prev.transactions, ...importQueue]
-          }));
-      }
-      setIsImportModalOpen(false);
-      setImportQueue([]);
-      setImportConflicts([]);
+    triggerHapticSuccess();
+    if (action === 'replace') {
+      const updates = new Map();
+      importConflicts.forEach(c => {
+        updates.set(c.existingTx.id, { ...c.newTx, id: c.existingTx.id });
+      });
+      
+      setData(prev => ({
+        ...prev,
+        transactions: [
+          ...prev.transactions.map(t => updates.has(t.id) ? updates.get(t.id) : t),
+          ...importQueue
+        ]
+      }));
+    } else {
+      setData(prev => ({
+        ...prev,
+        transactions: [...prev.transactions, ...importQueue]
+      }));
+    }
+    setIsImportModalOpen(false);
+    setImportQueue([]);
+    setImportConflicts([]);
   };
 
   const saveTransaction = (e: React.FormEvent) => {
-      e.preventDefault();
-      const form = e.target as HTMLFormElement;
-      const date = (form.elements.namedItem('date') as HTMLInputElement).value;
-      const desc = (form.elements.namedItem('desc') as HTMLInputElement).value;
-      const amt = parseFloat((form.elements.namedItem('amt') as HTMLInputElement).value);
-      const cat = (form.elements.namedItem('cat') as HTMLSelectElement).value;
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const date = (form.elements.namedItem('date') as HTMLInputElement).value;
+    const desc = (form.elements.namedItem('desc') as HTMLInputElement).value;
+    const amt = parseFloat((form.elements.namedItem('amt') as HTMLInputElement).value);
+    const cat = (form.elements.namedItem('cat') as HTMLSelectElement).value;
 
-      if(editingTx) {
-          setData(prev => ({
-              ...prev,
-              transactions: prev.transactions.map(t => t.id === editingTx.id ? { ...t, d: date, t: desc, a: amt, c: cat } : t)
-          }));
-      } else {
-          setData(prev => ({
-              ...prev,
-              transactions: [...prev.transactions, { id: Date.now(), d: date, t: desc, a: amt, c: cat }]
-          }));
-      }
-      triggerHapticSuccess();
-      setIsTxModalOpen(false);
-      setEditingTx(null);
+    if(editingTx) {
+      setData(prev => ({
+        ...prev,
+        transactions: prev.transactions.map(t => t.id === editingTx.id ? { ...t, d: date, t: desc, a: amt, c: cat } : t)
+      }));
+    } else {
+      setData(prev => ({
+        ...prev,
+        transactions: [...prev.transactions, { id: Date.now(), d: date, t: desc, a: amt, c: cat }]
+      }));
+    }
+    triggerHapticSuccess();
+    setIsTxModalOpen(false);
+    setEditingTx(null);
   };
 
   const deleteTransaction = () => {
-      if(editingTx && confirm("Delete?")) {
-          triggerHaptic('medium');
-          setData(prev => ({ ...prev, transactions: prev.transactions.filter(t => t.id !== editingTx.id) }));
-          setIsTxModalOpen(false);
-          setEditingTx(null);
-      }
+    if(editingTx && confirm("Delete?")) {
+      triggerHaptic('medium');
+      setData(prev => ({ ...prev, transactions: prev.transactions.filter(t => t.id !== editingTx.id) }));
+      setIsTxModalOpen(false);
+      setEditingTx(null);
+    }
   };
   
   const saveBill = (e: React.FormEvent) => {
@@ -540,15 +569,15 @@ const App: React.FC = () => {
     const day = parseInt((form.elements.namedItem('day') as HTMLInputElement).value);
 
     if (editingBill) {
-        setData(prev => ({
-            ...prev,
-            bills: prev.bills.map(b => b.id === editingBill.id ? { ...b, name, amount, day } : b)
-        }));
+      setData(prev => ({
+        ...prev,
+        bills: prev.bills.map(b => b.id === editingBill.id ? { ...b, name, amount, day } : b)
+      }));
     } else {
-        setData(prev => ({
-            ...prev,
-            bills: [...prev.bills, { id: Date.now(), name, amount, day }]
-        }));
+      setData(prev => ({
+        ...prev,
+        bills: [...prev.bills, { id: Date.now(), name, amount, day }]
+      }));
     }
     triggerHapticSuccess();
     setIsBillModalOpen(false);
@@ -556,53 +585,51 @@ const App: React.FC = () => {
   };
 
   const deleteBill = () => {
-      if(editingBill && confirm("Delete Bill?")) {
-          triggerHaptic('medium');
-          setData(prev => ({ ...prev, bills: prev.bills.filter(b => b.id !== editingBill.id) }));
-          setIsBillModalOpen(false);
-          setEditingBill(null);
-      }
+    if(editingBill && confirm("Delete Bill?")) {
+      triggerHaptic('medium');
+      setData(prev => ({ ...prev, bills: prev.bills.filter(b => b.id !== editingBill.id) }));
+      setIsBillModalOpen(false);
+      setEditingBill(null);
+    }
   };
 
-  // WIRE HAPTIC FEEDBACK HERE FOR MODAL BILL PAID TOGGLE
   const toggleBillPaid = () => {
-      if(!editingBill) return;
-      triggerHapticSuccess(); // TACTILE BUZZ FOR BILL PAID
-      const d = new Date();
-      d.setMonth(d.getMonth() - monthOffset); 
-      const viewingMonthKey = d.getFullYear() + '-' + d.getMonth();
-      
-      const isPaid = editingBill.manualPaid?.includes(viewingMonthKey);
-      
-      let newPaid = editingBill.manualPaid || [];
-      if(isPaid) newPaid = newPaid.filter(m => m !== viewingMonthKey);
-      else newPaid = [...newPaid, viewingMonthKey];
-      
-      const updatedBill = { ...editingBill, manualPaid: newPaid };
-      setData(prev => ({
-          ...prev,
-          bills: prev.bills.map(b => b.id === editingBill.id ? updatedBill : b)
-      }));
-      setEditingBill(updatedBill);
+    if(!editingBill) return;
+    triggerHapticSuccess();
+    const d = new Date();
+    d.setMonth(d.getMonth() - monthOffset); 
+    const viewingMonthKey = d.getFullYear() + '-' + d.getMonth();
+    
+    const isPaid = editingBill.manualPaid?.includes(viewingMonthKey);
+    
+    let newPaid = editingBill.manualPaid || [];
+    if(isPaid) newPaid = newPaid.filter(m => m !== viewingMonthKey);
+    else newPaid = [...newPaid, viewingMonthKey];
+    
+    const updatedBill = { ...editingBill, manualPaid: newPaid };
+    setData(prev => ({
+      ...prev,
+      bills: prev.bills.map(b => b.id === editingBill.id ? updatedBill : b)
+    }));
+    setEditingBill(updatedBill);
   };
 
-  // WIRE HAPTIC FEEDBACK HERE FOR RENT OR INLINE BILL PAID TOGGLES
   const handleToggleBillId = (id: number) => {
-    triggerHapticSuccess(); // TACTILE BUZZ FOR RENT/BILL
+    triggerHapticSuccess();
     const d = new Date();
     d.setMonth(d.getMonth() - monthOffset);
     const viewingMonthKey = `${d.getFullYear()}-${d.getMonth()}`;
     
     setData(prev => ({
-        ...prev,
-        bills: prev.bills.map(b => {
-            if(b.id !== id) return b;
-            const isPaid = b.manualPaid?.includes(viewingMonthKey);
-            let newPaid = b.manualPaid || [];
-            if(isPaid) newPaid = newPaid.filter(m => m !== viewingMonthKey);
-            else newPaid = [...newPaid, viewingMonthKey];
-            return { ...b, manualPaid: newPaid };
-        })
+      ...prev,
+      bills: prev.bills.map(b => {
+        if(b.id !== id) return b;
+        const isPaid = b.manualPaid?.includes(viewingMonthKey);
+        let newPaid = b.manualPaid || [];
+        if(isPaid) newPaid = newPaid.filter(m => m !== viewingMonthKey);
+        else newPaid = [...newPaid, viewingMonthKey];
+        return { ...b, manualPaid: newPaid };
+      })
     }));
   };
 
@@ -628,7 +655,7 @@ const App: React.FC = () => {
           }} 
           className="p-1 rounded-full border border-neutral-700 bg-neutral-900 transition-transform active:scale-95"
         >
-           <div className="h-8 w-8 rounded-full bg-neutral-800 flex items-center justify-center text-neutral-400 font-bold text-xs">CC</div>
+          <div className="h-8 w-8 rounded-full bg-neutral-800 flex items-center justify-center text-neutral-400 font-bold text-xs">CC</div>
         </button>
       </header>
 
@@ -641,34 +668,34 @@ const App: React.FC = () => {
 
           {activeTab === 'calendar' && 
             <CalendarView 
-                data={data} 
-                monthOffset={monthOffset}
-                setMonthOffset={setMonthOffset}
-                onOpenBillModal={(b) => { setEditingBill(b || null); setIsBillModalOpen(true); }} 
-                onUpdateRent={handleUpdateRent}
-                onTogglePaid={handleToggleBillId}
+              data={data} 
+              monthOffset={monthOffset}
+              setMonthOffset={setMonthOffset}
+              onOpenBillModal={(b) => { setEditingBill(b || null); setIsBillModalOpen(true); }} 
+              onUpdateRent={handleUpdateRent}
+              onTogglePaid={handleToggleBillId}
             />
           }
           
           {activeTab === 'spending' && 
             <SpendingView 
-                data={data} 
-                monthOffset={monthOffset}
-                setMonthOffset={setMonthOffset}
-                onOpenTxModal={(t) => { setEditingTx(t || null); setIsTxModalOpen(true); }}
+              data={data} 
+              monthOffset={monthOffset}
+              setMonthOffset={setMonthOffset}
+              onOpenTxModal={(t) => { setEditingTx(t || null); setIsTxModalOpen(true); }}
             />
           }
           
           {activeTab === 'debt' && <DebtView data={data} onSave={setData} />}
           
           {(activeTab as any) === 'categories' && 
-             <CategoriesView 
-                data={data} 
-                monthOffset={monthOffset} 
-                setMonthOffset={setMonthOffset}
-                onBack={() => { triggerHaptic('light'); setActiveTab('dashboard'); }} 
-                onOpenYear={() => { triggerHaptic('light'); setActiveTab('year_review' as any); }}
-             />
+            <CategoriesView 
+              data={data} 
+              monthOffset={monthOffset} 
+              setMonthOffset={setMonthOffset}
+              onBack={() => { triggerHaptic('light'); setActiveTab('dashboard'); }} 
+              onOpenYear={() => { triggerHaptic('light'); setActiveTab('year_review' as any); }}
+            />
           }
 
           {(activeTab as any) === 'year_review' && 
@@ -677,33 +704,33 @@ const App: React.FC = () => {
 
           {activeTab === 'transactions' && 
             <TransactionsView 
-                data={data} 
-                monthOffset={monthOffset}
-                setMonthOffset={setMonthOffset}
-                onOpenTxModal={(t) => { setEditingTx(t || null); setIsTxModalOpen(true); }} 
+              data={data} 
+              monthOffset={monthOffset}
+              setMonthOffset={setMonthOffset}
+              onOpenTxModal={(t) => { setEditingTx(t || null); setIsTxModalOpen(true); }} 
             />
           }
           
           {activeTab === 'fun' && 
             <FunView 
-                data={data} 
-                monthOffset={monthOffset}
-                setMonthOffset={setMonthOffset}
-                onOpenTxModal={(t) => { setEditingTx(t || null); setIsTxModalOpen(true); }}
-                onBack={() => { triggerHaptic('light'); setActiveTab('dashboard'); }}
+              data={data} 
+              monthOffset={monthOffset}
+              setMonthOffset={setMonthOffset}
+              onOpenTxModal={(t) => { setEditingTx(t || null); setIsTxModalOpen(true); }}
+              onBack={() => { triggerHaptic('light'); setActiveTab('dashboard'); }}
             />
           }
 
           {activeTab === 'settings' && 
             <SettingsView 
-                data={data} 
-                onUpdateBudget={handleUpdateBudget} 
-                onReset={handleReset} 
-                onImport={handleImportCSV} 
-                onExport={handleExportData}
-                onRestore={handleRestoreData}
-                onArchive={handleArchiveData}
-                onLogout={handleLogout}
+              data={data} 
+              onUpdateBudget={handleUpdateBudget} 
+              onReset={handleReset} 
+              onImport={handleImportCSV} 
+              onExport={handleExportData}
+              onRestore={handleRestoreData}
+              onArchive={handleArchiveData}
+              onLogout={handleLogout}
             />
           }
 
@@ -723,33 +750,33 @@ const App: React.FC = () => {
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-[#171717] border border-[#262626] rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
             <div className="flex justify-between items-center">
-               <h3 className="font-bold text-lg text-white">{editingTx ? 'Edit Transaction' : 'New Transaction'}</h3>
-               <button onClick={() => setIsTxModalOpen(false)} className="text-neutral-500 hover:text-white"><X /></button>
+              <h3 className="font-bold text-lg text-white">{editingTx ? 'Edit Transaction' : 'New Transaction'}</h3>
+              <button onClick={() => setIsTxModalOpen(false)} className="text-neutral-500 hover:text-white"><X /></button>
             </div>
             <form onSubmit={saveTransaction} className="space-y-4">
-               <input name="date" type="date" required defaultValue={editingTx?.d || new Date().toISOString().split('T')[0]} className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-blue-500" />
-               <input name="desc" type="text" placeholder="Description" required defaultValue={editingTx?.t || ''} className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-blue-500" />
-               <div className="grid grid-cols-2 gap-4">
-                  <input name="amt" type="number" step="0.01" placeholder="Amount" required defaultValue={editingTx?.a || ''} className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-blue-500" />
-                  <select name="cat" defaultValue={editingTx?.c || 'Dining'} className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-blue-500">
-                    <option>Dining</option>
-                    <option>Groceries</option>
-                    <option>Gas</option>
-                    <option>Clothes</option>
-                    <option>Electronics/Games</option>
-                    <option>Music Gear</option>
-                    <option>Gifts</option>
-                    <option>Rent</option>
-                    <option>Bills</option>
-                    <option>Debt</option>
-                    <option>Income</option>
-                    <option>Other</option>
-                  </select>
-               </div>
-               <div className="flex gap-2 pt-2">
-                 <button type="submit" className="flex-1 bg-white text-black py-3 rounded-xl font-bold hover:bg-neutral-200 transition-colors">Save</button>
-                 {editingTx && <button type="button" onClick={deleteTransaction} className="flex-1 bg-red-900/20 text-red-400 border border-red-900/30 py-3 rounded-xl font-bold flex items-center justify-center"><Trash2 size={18} /></button>}
-               </div>
+              <input name="date" type="date" required defaultValue={editingTx?.d || new Date().toISOString().split('T')[0]} className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-blue-500" />
+              <input name="desc" type="text" placeholder="Description" required defaultValue={editingTx?.t || ''} className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-blue-500" />
+              <div className="grid grid-cols-2 gap-4">
+                <input name="amt" type="number" step="0.01" placeholder="Amount" required defaultValue={editingTx?.a || ''} className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-blue-500" />
+                <select name="cat" defaultValue={editingTx?.c || 'Dining'} className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-blue-500">
+                  <option>Dining</option>
+                  <option>Groceries</option>
+                  <option>Gas</option>
+                  <option>Clothes</option>
+                  <option>Electronics/Games</option>
+                  <option>Music Gear</option>
+                  <option>Gifts</option>
+                  <option>Rent</option>
+                  <option>Bills</option>
+                  <option>Debt</option>
+                  <option>Income</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="submit" className="flex-1 bg-white text-black py-3 rounded-xl font-bold hover:bg-neutral-200 transition-colors">Save</button>
+                {editingTx && <button type="button" onClick={deleteTransaction} className="flex-1 bg-red-900/20 text-red-400 border border-red-900/30 py-3 rounded-xl font-bold flex items-center justify-center"><Trash2 size={18} /></button>}
+              </div>
             </form>
           </div>
         </div>
@@ -759,105 +786,105 @@ const App: React.FC = () => {
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-[#171717] border border-[#262626] rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl">
             <div className="flex justify-between items-center">
-               <h3 className="font-bold text-lg text-white">{editingBill ? (editingBill.id ? 'Edit Bill' : 'New Bill') : 'New Bill'}</h3>
-               <button onClick={() => setIsBillModalOpen(false)} className="text-neutral-500 hover:text-white"><X /></button>
+              <h3 className="font-bold text-lg text-white">{editingBill ? (editingBill.id ? 'Edit Bill' : 'New Bill') : 'New Bill'}</h3>
+              <button onClick={() => setIsBillModalOpen(false)} className="text-neutral-500 hover:text-white"><X /></button>
             </div>
             
             {editingBill && editingBill.id && (
-                <div className="p-4 bg-neutral-950 rounded-xl border border-neutral-800 mb-4">
-                   <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs text-neutral-500 font-bold uppercase">Status</span>
-                        {(() => {
-                            const d = new Date();
-                            d.setMonth(d.getMonth() - monthOffset); 
-                            const key = `${d.getFullYear()}-${d.getMonth()}`;
-                            return editingBill.manualPaid?.includes(key)
-                                ? <span className="text-xs font-bold text-emerald-400 bg-emerald-900/30 px-2 py-1 rounded">PAID</span>
-                                : <span className="text-xs font-bold text-red-400 bg-red-900/30 px-2 py-1 rounded">UNPAID</span>;
-                        })()}
-                   </div>
-                   <button type="button" onClick={toggleBillPaid} className="w-full py-2 bg-blue-600/20 text-blue-400 font-bold text-xs rounded border border-blue-600/30 hover:bg-blue-600/30 transition-colors">
-                       Toggle Paid Status (Viewing Month)
-                   </button>
+              <div className="p-4 bg-neutral-950 rounded-xl border border-neutral-800 mb-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-xs text-neutral-500 font-bold uppercase">Status</span>
+                  {(() => {
+                    const d = new Date();
+                    d.setMonth(d.getMonth() - monthOffset); 
+                    const key = `${d.getFullYear()}-${d.getMonth()}`;
+                    return editingBill.manualPaid?.includes(key)
+                      ? <span className="text-xs font-bold text-emerald-400 bg-emerald-900/30 px-2 py-1 rounded">PAID</span>
+                      : <span className="text-xs font-bold text-red-400 bg-red-900/30 px-2 py-1 rounded">UNPAID</span>;
+                  })()}
                 </div>
+                <button type="button" onClick={toggleBillPaid} className="w-full py-2 bg-blue-600/20 text-blue-400 font-bold text-xs rounded border border-blue-600/30 hover:bg-blue-600/30 transition-colors">
+                  Toggle Paid Status (Viewing Month)
+                </button>
+              </div>
             )}
 
             <form onSubmit={saveBill} className="space-y-4">
-               <input name="name" type="text" placeholder="Bill Name" required defaultValue={editingBill?.name || ''} className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-blue-500" />
-               <input name="amount" type="number" step="0.01" placeholder="Amount" required defaultValue={editingBill?.amount || ''} className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-blue-500" />
-               <input name="day" type="number" min="1" max="31" placeholder="Day of Month" required defaultValue={editingBill?.day || ''} className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-blue-500" />
-               
-               <div className="flex gap-2 pt-2">
-                 <button type="submit" className="flex-1 bg-white text-black py-3 rounded-xl font-bold hover:bg-neutral-200 transition-colors flex items-center justify-center gap-2"><Check size={18}/> Save</button>
-                 {editingBill && editingBill.id && <button type="button" onClick={deleteBill} className="flex-1 bg-red-900/20 text-red-400 border border-red-900/30 py-3 rounded-xl font-bold flex items-center justify-center"><Trash2 size={18} /></button>}
-               </div>
+              <input name="name" type="text" placeholder="Bill Name" required defaultValue={editingBill?.name || ''} className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-blue-500" />
+              <input name="amount" type="number" step="0.01" placeholder="Amount" required defaultValue={editingBill?.amount || ''} className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-blue-500" />
+              <input name="day" type="number" min="1" max="31" placeholder="Day of Month" required defaultValue={editingBill?.day || ''} className="bg-[#0a0a0a] border border-[#262626] w-full rounded-xl p-3 text-white focus:outline-none focus:border-blue-500" />
+              
+              <div className="flex gap-2 pt-2">
+                <button type="submit" className="flex-1 bg-white text-black py-3 rounded-xl font-bold hover:bg-neutral-200 transition-colors flex items-center justify-center gap-2"><Check size={18}/> Save</button>
+                {editingBill && editingBill.id && <button type="button" onClick={deleteBill} className="flex-1 bg-red-900/20 text-red-400 border border-red-900/30 py-3 rounded-xl font-bold flex items-center justify-center"><Trash2 size={18} /></button>}
+              </div>
             </form>
           </div>
         </div>
       )}
 
       {isImportModalOpen && importConflicts.length > 0 && (
-         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
-           <div className="bg-[#171717] border border-[#262626] rounded-3xl w-full max-w-lg p-6 flex flex-col max-h-[85vh] shadow-2xl">
-              <div className="flex justify-between items-center mb-4">
-                  <div className="flex items-center gap-3">
-                      <div className="bg-yellow-900/30 p-2 rounded-lg text-yellow-500">
-                          <AlertTriangle size={24} />
-                      </div>
-                      <div>
-                          <h3 className="font-bold text-lg text-white">Import Conflicts</h3>
-                          <p className="text-xs text-neutral-400">{importConflicts.length} potential duplicates found</p>
-                      </div>
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-[#171717] border border-[#262626] rounded-3xl w-full max-w-lg p-6 flex flex-col max-h-[85vh] shadow-2xl">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-yellow-900/30 p-2 rounded-lg text-yellow-500">
+                  <AlertTriangle size={24} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg text-white">Import Conflicts</h3>
+                  <p className="text-xs text-neutral-400">{importConflicts.length} potential duplicates found</p>
+                </div>
+              </div>
+              <button onClick={() => { setIsImportModalOpen(false); setImportQueue([]); }} className="text-neutral-500 hover:text-white"><X /></button>
+            </div>
+
+            <div className="flex gap-2 mb-4 pb-4 border-b border-neutral-800">
+              <button onClick={() => resolveAll('keep_old')} className="flex-1 py-2 text-xs font-bold text-neutral-400 bg-neutral-900 rounded-lg hover:bg-neutral-800 border border-neutral-700">
+                Keep All Originals
+              </button>
+              <button onClick={() => resolveAll('replace')} className="flex-1 py-2 text-xs font-bold text-emerald-400 bg-emerald-900/20 rounded-lg hover:bg-emerald-900/30 border border-emerald-900/50">
+                Replace All (Update)
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1 no-scrollbar">
+              {importConflicts.map((conflict, idx) => (
+                <div key={idx} className="bg-neutral-950 p-4 rounded-xl border border-neutral-800">
+                  <div className="grid grid-cols-[1fr,auto,1fr] gap-2 items-center mb-4">
+                    <div className="text-left opacity-70">
+                      <p className="text-[10px] font-bold text-neutral-500 uppercase">Existing</p>
+                      <p className="text-xs text-white font-medium truncate">{conflict.existingTx.t}</p>
+                      <p className="text-xs text-neutral-400 font-mono">{conflict.existingTx.d}</p>
+                    </div>
+                    <div className="text-neutral-600"><ArrowRight size={16} /></div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-bold text-emerald-500 uppercase">New Import</p>
+                      <p className="text-xs text-white font-medium truncate">{conflict.newTx.t}</p>
+                      <p className="text-xs text-neutral-400 font-mono">{conflict.newTx.d}</p>
+                    </div>
                   </div>
-                  <button onClick={() => { setIsImportModalOpen(false); setImportQueue([]); }} className="text-neutral-500 hover:text-white"><X /></button>
-              </div>
+                  
+                  <div className="text-center mb-3">
+                    <span className="text-xl font-bold text-white">${conflict.newTx.a.toFixed(2)}</span>
+                  </div>
 
-              <div className="flex gap-2 mb-4 pb-4 border-b border-neutral-800">
-                  <button onClick={() => resolveAll('keep_old')} className="flex-1 py-2 text-xs font-bold text-neutral-400 bg-neutral-900 rounded-lg hover:bg-neutral-800 border border-neutral-700">
-                      Keep All Originals
-                  </button>
-                  <button onClick={() => resolveAll('replace')} className="flex-1 py-2 text-xs font-bold text-emerald-400 bg-emerald-900/20 rounded-lg hover:bg-emerald-900/30 border border-emerald-900/50">
-                      Replace All (Update)
-                  </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto space-y-4 pr-1 no-scrollbar">
-                  {importConflicts.map((conflict, idx) => (
-                      <div key={idx} className="bg-neutral-950 p-4 rounded-xl border border-neutral-800">
-                          <div className="grid grid-cols-[1fr,auto,1fr] gap-2 items-center mb-4">
-                              <div className="text-left opacity-70">
-                                  <p className="text-[10px] font-bold text-neutral-500 uppercase">Existing</p>
-                                  <p className="text-xs text-white font-medium truncate">{conflict.existingTx.t}</p>
-                                  <p className="text-xs text-neutral-400 font-mono">{conflict.existingTx.d}</p>
-                              </div>
-                              <div className="text-neutral-600"><ArrowRight size={16} /></div>
-                              <div className="text-right">
-                                  <p className="text-[10px] font-bold text-emerald-500 uppercase">New Import</p>
-                                  <p className="text-xs text-white font-medium truncate">{conflict.newTx.t}</p>
-                                  <p className="text-xs text-neutral-400 font-mono">{conflict.newTx.d}</p>
-                              </div>
-                          </div>
-                          
-                          <div className="text-center mb-3">
-                              <span className="text-xl font-bold text-white">${conflict.newTx.a.toFixed(2)}</span>
-                          </div>
-
-                          <div className="grid grid-cols-3 gap-2">
-                              <button onClick={() => resolveConflict(conflict, 'keep_old')} className="py-2 bg-neutral-800 rounded-lg text-[10px] font-bold text-neutral-300 hover:bg-neutral-700">
-                                  Keep Old
-                              </button>
-                              <button onClick={() => resolveConflict(conflict, 'replace')} className="py-2 bg-emerald-900/30 border border-emerald-900/50 rounded-lg text-[10px] font-bold text-emerald-400 hover:bg-emerald-900/50">
-                                  Replace
-                              </button>
-                              <button onClick={() => resolveConflict(conflict, 'keep_both')} className="py-2 bg-blue-900/20 border border-blue-900/50 rounded-lg text-[10px] font-bold text-blue-400 hover:bg-blue-900/40">
-                                  Keep Both
-                              </button>
-                          </div>
-                      </div>
-                  ))}
-              </div>
-           </div>
-         </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button onClick={() => resolveConflict(conflict, 'keep_old')} className="py-2 bg-neutral-800 rounded-lg text-[10px] font-bold text-neutral-300 hover:bg-neutral-700">
+                      Keep Old
+                    </button>
+                    <button onClick={() => resolveConflict(conflict, 'replace')} className="py-2 bg-emerald-900/30 border border-emerald-900/50 rounded-lg text-[10px] font-bold text-emerald-400 hover:bg-emerald-900/50">
+                      Replace
+                    </button>
+                    <button onClick={() => resolveConflict(conflict, 'keep_both')} className="py-2 bg-blue-900/20 border border-blue-900/50 rounded-lg text-[10px] font-bold text-blue-400 hover:bg-blue-900/40">
+                      Keep Both
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

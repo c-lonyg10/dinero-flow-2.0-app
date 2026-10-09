@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { AppData } from '../types';
-import { Settings, RefreshCw, Upload, Download, Trash2, Github, LogOut, History, Wallet, FileText, Cloud, Smartphone } from 'lucide-react';
-import { getHapticSettings, setHapticSettings, triggerHaptic, HapticIntensity } from '../haptics';
+import { Settings, RefreshCw, Download, Trash2, LogOut, History, Wallet, FileText, Cloud, Smartphone, Bell } from 'lucide-react';
+import { setHapticSettings, triggerHaptic, HapticIntensity } from '../haptics';
+import { setNotificationSettings, requestNotificationPermission } from '../notifications';
 
 interface SettingsViewProps {
   data: AppData;
@@ -27,11 +28,32 @@ const SettingsView: React.FC<SettingsViewProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const restoreInputRef = useRef<HTMLInputElement>(null);
 
-  // Haptic Feedback State
-  const initialSettings = getHapticSettings();
-  const [hapticsEnabled, setHapticsEnabledState] = useState<boolean>(initialSettings.enabled);
-  const [hapticIntensity, setHapticIntensityState] = useState<HapticIntensity>(initialSettings.intensity);
+  // 1. Group all useState hooks at the top with resilient lazy initializers
+  const [hapticsEnabled, setHapticsEnabledState] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('dinero_haptics_enabled') !== 'false';
+    } catch {
+      return true;
+    }
+  });
 
+  const [hapticIntensity, setHapticIntensityState] = useState<HapticIntensity>(() => {
+    try {
+      return (localStorage.getItem('dinero_haptic_intensity') as HapticIntensity) || 'light';
+    } catch {
+      return 'light';
+    }
+  });
+
+  const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('dinero_notifications_enabled') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  // 2. Handlers
   const toggleHaptics = () => {
     const nextState = !hapticsEnabled;
     setHapticsEnabledState(nextState);
@@ -44,7 +66,24 @@ const SettingsView: React.FC<SettingsViewProps> = ({
   const changeIntensity = (level: HapticIntensity) => {
     setHapticIntensityState(level);
     setHapticSettings(hapticsEnabled, level);
-    triggerHaptic(level); // Test vibration buzz immediately on click
+    triggerHaptic(level);
+  };
+
+  const handleToggleNotifications = async () => {
+    if (!notificationsEnabled) {
+      const granted = await requestNotificationPermission();
+      if (!granted) {
+        alert('Please grant notification permission in your Android settings to receive bill reminders.');
+        return;
+      }
+      setNotificationsEnabled(true);
+      setNotificationSettings(true);
+      triggerHaptic('light');
+    } else {
+      setNotificationsEnabled(false);
+      setNotificationSettings(false);
+      triggerHaptic('light');
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -190,6 +229,25 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
                 </div>
             )}
+        </div>
+
+        {/* 6. BILL NOTIFICATIONS CARD (INDIGO) */}
+        <div className="p-5 rounded-3xl border border-indigo-900/30 bg-indigo-950/20 shadow-lg">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <Bell className="text-indigo-400" size={24} />
+                    <div>
+                        <h3 className="font-bold text-lg text-white">Bill Reminders</h3>
+                        <p className="text-xs text-neutral-400">Alerts at 9:00 AM (24 hrs prior & day-of)</p>
+                    </div>
+                </div>
+                <button
+                    onClick={handleToggleNotifications}
+                    className={`w-12 h-7 flex items-center rounded-full p-1 transition-colors ${notificationsEnabled ? 'bg-indigo-500 justify-end' : 'bg-neutral-800 justify-start'}`}
+                >
+                    <div className="bg-white w-5 h-5 rounded-full shadow-md"></div>
+                </button>
+            </div>
         </div>
 
         {/* Logout Button */}
