@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { AppData } from '../types';
-import { ArrowLeft, TrendingUp, ChevronDown, Music, Home, Zap, Coffee, ShoppingBag, Gamepad2, Fuel, Shirt, Gift, Smile, DollarSign, CreditCard, Dog } from 'lucide-react';
+import { ArrowLeft, TrendingUp, ChevronDown, Music, Home, Zap, Coffee, ShoppingBag, Gamepad2, Fuel, Shirt, Gift, Smile, DollarSign, CreditCard, Dog, Car } from 'lucide-react';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
 import { get2026MonthOptions } from '../dateHelpers';
 import { triggerHaptic } from '../haptics';
@@ -96,6 +96,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
           case 'Clothes': return { color: '#d946ef', icon: <Shirt size={18} /> }; // Fuchsia
           case 'Gifts': return { color: '#f43f5e', icon: <Gift size={18} /> }; // Rose
           case 'Pets': return { color: '#f59e0b', icon: <Dog size={18} /> }; // Amber for Pets
+          case 'Car': return { color: '#64748b', icon: <Car size={18} /> }; // Slate Blue for Car
           case 'For Fun': return { color: '#84cc16', icon: <Smile size={18} /> }; // Lime
           default: return { color: '#a3a3a3', icon: <DollarSign size={18} /> };
       }

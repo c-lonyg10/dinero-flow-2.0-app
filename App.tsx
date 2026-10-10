@@ -383,58 +383,70 @@ const App: React.FC = () => {
         const isoDate = `${parts[2]}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
         
         const amount = parseFloat(amountStr);
-        
         let cat = 'Other';
-        const lowerDesc = desc.toLowerCase().replace(/[\*_\-]/g, ' ');
 
-        if (['guitar center', 'sweetwater', 'reverb', 'fender', 'gibson', 'strings', 'music', 'audio', 'pedal', 'amp', 'drum', 'thomann', 'sam ash', 'zounds'].some(k => lowerDesc.includes(k))) {
-          cat = 'Music Gear';
-        }
-        else if (['shell', 'exxon', 'mobil', 'qt', 'quik trip', 'quiktrip', 'race trac', 'racetrac', 'circle k', 'bp', 'chevron', 'texaco', 'sheetz', 'wawa', '7 eleven', 'citgo', 'murphy', 'love s', 'pilot', 'speedway', 'valero', 'marathon'].some(k => lowerDesc.includes(k))) {
-          cat = 'Gas';
-        }
-        else if (['nike', 'adidas', 'tj maxx', 'ross', 'marshalls', 'gap', 'old navy', 'h&m', 'zara', 'uniqlo', 'goodwill', 'salvation army', 'plato', 'closet', 'apparel', 'clothing', 'shoe', 'foot locker'].some(k => lowerDesc.includes(k))) {
-          cat = 'Clothes';
-        }
-        else if (['best buy', 'micro center', 'apple', 'nintendo', 'steam', 'playstation', 'xbox', 'gamestop', 'ubisoft', 'blizzard', 'epic games', 'electronic', 'tech'].some(k => lowerDesc.includes(k))) {
-          cat = 'Electronics/Games';
-        }
-        else if (['etsy', 'flower', 'gift', 'hallmark', 'party city', 'present'].some(k => lowerDesc.includes(k))) {
-          cat = 'Gifts';
-        }
-        else if (['restaurant', 'cafe', 'coffee', 'starbucks', 'dunkin', 'mcdonald', 'chick fil a', 'burger', 'taco', 'chipotle', 'pizza', 'eats', 'doordash', 'grubhub', 'uber eats', 'grill', 'bistro', 'steak', 'bar', 'dominos', 'bagel', 'ny bagel', 'dd br', 'kfc', 'popeyes', 'wendy', 'sonic', 'subway', 'jersey mike', 'panera', 'sushi', 'diner', 'waffle house', 'cook out', 'culver', 'bojangles', 'zaxby'].some(k => lowerDesc.includes(k))) {
-          cat = 'Dining';
-        } 
-        else if (['grocery', 'market', 'kroger', 'whole foods', 'trader joe', 'publix', 'heb', 'harris teeter', 'wegmans', 'aldi', 'lidl', 'walmart', 'wal mart', 'wm supercenter', 'target', 'food lion', 'safeway', 'bj', 'wholesale', 'sam s club', 'sams club', 'costco', 'meijer', 'walgreens', 'cvs', 'dollar general', 'family dollar'].some(k => lowerDesc.includes(k))) {
-          cat = 'Groceries';
-        }
-        else if (['amc', 'regal', 'cinema', 'movie', 'ticket', 'stubhub', 'seatgeek', 'eventbrite', 'golf', 'bowling', 'entertainment', 'hobby', 'toy', 'lego', 'party', 'club', 'vape', 'smoke', 'dispensary'].some(k => lowerDesc.includes(k))) {
-          cat = 'For Fun'; 
-        }
-        else if (lowerDesc.includes('flex finance') || lowerDesc.includes('getflex') || ['rent', 'lease', 'apartment', 'property'].some(k => lowerDesc.includes(k))) {
-          cat = 'Rent';
-        }
-        else if (['youtube', 'google', 'disney', 'hulu', 'netflix', 'spotify', 'apple', 'insurance', 'utilities', 'electric', 'water', 'internet', 'spectrum', 'att', 'verizon', 'duke energy', 'piedmont'].some(k => lowerDesc.includes(k))) {
-          cat = 'Bills';
-        }
-        else if (['loan', 'payment', 'credit card', 'chase', 'amex', 'citi', 'discover', 'capital one', 'synchrony', 'affirm', 'klarna'].some(k => lowerDesc.includes(k))) {
-          cat = 'Debt';
-        }
-        else if (['payroll', 'deposit', 'salary', 'elevate'].some(k => lowerDesc.includes(k))) {
+        // 1. Inflows are always Income
+        if (amount > 0) {
           cat = 'Income';
-        }
-        else if (['venmo', 'zelle', 'cash app', 'paypal'].some(k => lowerDesc.includes(k))) {
-          cat = amount > 0 ? 'Income' : 'Other'; 
-        }
-        else if (['petco', 'petsmart', 'chewy', 'vet', 'animal hospital', 'barkbox', 'pet supplies', 'dog', 'pup', 'canine'].some(k => lowerDesc.includes(k))) {
-          cat = 'Pets';
+        } else {
+          // Normalize text: remove *, _, -, ', and .
+          const lowerDesc = desc.toLowerCase().replace(/[\*_\-'\.]/g, ' ');
+
+          // 2. Outflow Category Detection
+          if (['guitar center', 'sweetwater', 'reverb', 'fender', 'gibson', 'strings', 'music', 'audio', 'pedal', 'amp', 'drum', 'thomann', 'sam ash', 'zounds'].some(k => lowerDesc.includes(k))) {
+            cat = 'Music Gear';
+          }
+          else if (['petco', 'petsmart', 'chewy', 'vet', 'animal hospital', 'barkbox', 'pet supplies', 'dog', 'pup', 'canine'].some(k => lowerDesc.includes(k))) {
+            cat = 'Pets';
+          }
+          else if (['honda', 'oil change', 'tire', 'car wash', 'autozone', 'advance auto', 'o reilly', 'napa auto', 'dmv', 'nc dot', 'valvoline', 'jiffy lube', 'auto bell'].some(k => lowerDesc.includes(k))) {
+            cat = 'Car';
+          }
+          else if (['vape', 'smoke', 'dispensary' ].some(k => lowerDesc.includes(k))) {
+            cat = 'Gas';
+          }
+          else if (['nike', 'adidas', 'tj maxx', 'ross', 'marshalls', 'gap', 'old navy', 'h&m', 'zara', 'uniqlo', 'goodwill', 'salvation army', 'plato', 'closet', 'apparel', 'clothing', 'shoe', 'foot locker'].some(k => lowerDesc.includes(k))) {
+            cat = 'Clothes';
+          }
+          else if (['best buy', 'micro center', 'apple', 'nintendo', 'steam', 'playstation', 'xbox', 'gamestop', 'ubisoft', 'blizzard', 'epic games', 'electronic', 'tech'].some(k => lowerDesc.includes(k))) {
+            cat = 'Electronics/Games';
+          }
+          else if (['etsy', 'flower', 'gift', 'hallmark', 'party city', 'present'].some(k => lowerDesc.includes(k))) {
+            cat = 'Gifts';
+          }
+          else if ([
+            'domino', 'dairi o', 'dario', 'mcdonald', 'chick fil a', 'starbucks', 'dunkin', 'burger', 
+            'wendy', 'sonic', 'subway', 'jersey mike', 'panera', 'chipotle', 'taco', 'kfc', 
+            'popeye', 'bojangles', 'zaxby', 'cook out', 'waffle house', 'culver', 'five guys',
+            'restaurant', 'cafe', 'coffee', 'bakery', 'bagel', 'pizza', 'pizzeria', 'diner', 'bistro', 
+            'grill', 'bar', 'pub', 'brew', 'brewery', 'tavern', 'kitchen', 'cantina', 'taqueria', 
+            'wings', 'bbq', 'barbeque', 'steak', 'sushi', 'ramen', 'hibachi', 'noodle', 'deli', 'hoagie',
+            'ice cream', 'eats', 'doordash', 'grubhub', 'uber eats'
+          ].some(k => lowerDesc.includes(k))) {
+            cat = 'Dining';
+          }
+          else if (['grocery', 'market', 'kroger', 'whole foods', 'trader joe', 'publix', 'harris teeter', 'aldi', 'lidl', 'walmart', 'wal mart', 'target', 'food lion', 'costco', 'sams club', 'bj'].some(k => lowerDesc.includes(k))) {
+            cat = 'Groceries';
+          }
+          else if (['amc', 'regal', 'cinema', 'movie', 'ticket', 'stubhub', 'seatgeek', 'eventbrite', 'golf', 'bowling', 'entertainment', 'hobby', 'toy', 'lego', 'party', 'club'].some(k => lowerDesc.includes(k))) {
+            cat = 'For Fun';
+          }
+          else if (lowerDesc.includes('flex finance') || lowerDesc.includes('getflex') || ['rent', 'lease', 'apartment', 'property'].some(k => lowerDesc.includes(k))) {
+            cat = 'Rent';
+          }
+          else if (['youtube', 'google', 'disney', 'hulu', 'netflix', 'spotify', 'insurance', 'utilities', 'electric', 'water', 'internet', 'spectrum', 'att', 'verizon', 'duke energy', 'piedmont'].some(k => lowerDesc.includes(k))) {
+            cat = 'Bills';
+          }
+          else if (['loan', 'payment', 'credit card', 'chase', 'amex', 'citi', 'discover', 'capital one', 'synchrony', 'affirm', 'klarna'].some(k => lowerDesc.includes(k))) {
+            cat = 'Debt';
+          }
         }
 
         parsedTxs.push({
-          id: Date.now() + i, 
-          d: isoDate, 
-          t: desc, 
-          a: amount, 
+          id: Date.now() + i,
+          d: isoDate,
+          t: desc,
+          a: amount,
           c: cat
         });
       }
@@ -767,9 +779,11 @@ const App: React.FC = () => {
                   <option>Gas</option>
                   <option>Clothes</option>
                   <option>Electronics/Games</option>
+                  <option>For Fun</option>
                   <option>Music Gear</option>
                   <option>Gifts</option>
                   <option>Pets</option>
+                  <option>Car</option>
                   <option>Rent</option>
                   <option>Bills</option>
                   <option>Debt</option>
