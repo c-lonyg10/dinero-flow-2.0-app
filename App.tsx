@@ -87,7 +87,44 @@ const App: React.FC = () => {
       const supabaseData = await loadDataFromSupabase(user.id);
       
       if (supabaseData) {
-        setData(supabaseData);
+        // Enforce temporal lifecycle constraints for car loans
+        const patchedBills = (supabaseData.bills || []).map((bill: Bill) => {
+          if (bill.name === 'HONDA PMT' || bill.amount === 533.03) {
+            return {
+              ...bill,
+              startMonth: '2026-9'
+            };
+          }
+          if (bill.name === 'Car Loan' || bill.amount === 169.32) {
+            return {
+              ...bill,
+              startMonth: '2026-0',
+              endMonth: '2026-8'
+            };
+          }
+          return bill;
+        });
+
+        // If the old $169.32 bill was completely deleted from Supabase, re-inject it cleanly
+        const hasOldCarLoan = patchedBills.some((b: Bill) => b.name === 'Car Loan' && b.amount === 169.32);
+        if (!hasOldCarLoan) {
+          patchedBills.push({
+            id: 5,
+            name: 'Car Loan',
+            amount: 169.32,
+            day: 11,
+            manualPaid: [],
+            startMonth: '2026-0',
+            endMonth: '2026-8'
+          });
+        }
+
+        const normalizedData: AppData = {
+          ...supabaseData,
+          bills: patchedBills
+        };
+
+        setData(normalizedData);
         hasLoadedRef.current = true;
       } else {
         hasLoadedRef.current = true;
