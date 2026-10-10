@@ -1,7 +1,7 @@
 import React from 'react';
 import { AppData, Bill } from '../types';
 import { Plus, ChevronDown, Home, CheckCircle2, Clock, Calendar as CalendarIcon } from 'lucide-react';
-import { get2026MonthOptions } from '../dateHelpers';
+import { get2026MonthOptions, isBillActiveInMonth } from '../dateHelpers';
 import { triggerHaptic } from '../haptics';
 
 interface CalendarViewProps {
@@ -35,6 +35,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
   const emptyStart = Array.from({ length: firstDay }, (_, i) => i);
 
+  // Active bills for this specific calendar month
+  const activeBills = data.bills.filter(b => isBillActiveInMonth(b, year, month));
+
   // Payday logic
   const refDate = new Date(2026, 0, 9);
   const isPayday = (day: number) => {
@@ -45,13 +48,12 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
   const monthKey = `${year}-${month}`;
 
-  // --- RENT LOGIC (Migrated from RentView) ---
+  // --- RENT LOGIC ---
   const monthlyRent = data.budget.rentHistory?.[monthKey] !== undefined 
       ? data.budget.rentHistory[monthKey] 
       : (data.budget.rentTotal || 0);
   
   const wave2Base = 600.00; 
-  // Flex Split Fee is 3.0% on Wave 2 ($18.00 on $600 base)
   const wave2Fee = wave2Base * 0.03; 
   const wave2Total = wave2Base + wave2Fee; 
   
@@ -59,27 +61,22 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   if (monthlyRent > wave2Base) { 
       wave1Base = monthlyRent - 600; 
   }
-  // Flex Membership ($5.99) + ~0.8808% Processing Fee ($12.92 total on $786.80)
   const wave1Fee = wave1Base > 0 ? 5.99 + (wave1Base * 0.0088078) : 0; 
   const wave1Total = wave1Base + wave1Fee;
   const annaWave1 = Math.max(0, wave1Total - 500);
 
-  const bill1 = data.bills.find(b => b.id === 1); // Flex Rent
-  const bill2 = data.bills.find(b => b.id === 9); // Flex Finance (Wave 2)
+  const bill1 = activeBills.find(b => b.id === 1); // Flex Rent
+  const bill2 = activeBills.find(b => b.id === 9); // Flex Finance (Wave 2)
   const isWave1Paid = bill1?.manualPaid?.includes(monthKey);
   const isWave2Paid = bill2?.manualPaid?.includes(monthKey);
 
-  // Month Dropdown (Unlocked for 2026)
+  // Month Dropdown
   const monthOptions = get2026MonthOptions();
   
   // Bill Status Logic
   const getBillStatus = (bill: Bill, day: number) => {
       const isManualPaid = bill.manualPaid?.includes(monthKey);
-      let isAutoPaid = false; // Simplified for visual clarity
-
-      const isPaid = isManualPaid || isAutoPaid;
-      
-      if (isPaid) return 'bg-emerald-900/40 text-emerald-300 border-emerald-500/30';
+      if (isManualPaid) return 'bg-emerald-900/40 text-emerald-300 border-emerald-500/30';
       if (monthOffset > 0 || (isCurrentMonth && day < today)) return 'bg-red-900/40 text-red-300 border-red-500/30';
       return 'bg-blue-900/40 text-blue-300 border-blue-500/30';
   };
@@ -88,15 +85,12 @@ const CalendarView: React.FC<CalendarViewProps> = ({
     <div className="min-h-[100dvh] pb-24">
       {/* FIXED HEADER SECTION */}
       <div className="pt-4 pb-4 px-6 flex justify-between items-center bg-black sticky top-0 z-50 shadow-lg shadow-black/50">
-        
-        {/* Left: Standard Title */}
         <h2 className="text-2xl font-extrabold text-white flex items-center gap-2">
             <CalendarIcon className="text-blue-500" /> Bill Calendar
         </h2>
 
-        {/* Right: Bubble Dropdown + Add Button */}
         <div className="flex items-center gap-2">
-             <div className="relative z-20">
+            <div className="relative z-20">
                 <select 
                     value={monthOffset} 
                     onChange={(e) => {
@@ -126,7 +120,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
       {/* SCROLLABLE CONTENT */}
       <div className="space-y-8 px-4 pb-10 mt-2">
-          
           {/* 1. CALENDAR GRID */}
           <div className="bg-[#171717] rounded-3xl overflow-hidden p-1 shadow-xl border border-[#262626]">
             <div className="grid grid-cols-7 gap-px bg-[#262626] border border-[#262626] rounded-t-xl overflow-hidden">
@@ -143,7 +136,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
               ))}
               
               {days.map(day => {
-                 const dayBills = data.bills.filter(b => b.day === day);
+                 const dayBills = activeBills.filter(b => b.day === day);
                  const payday = isPayday(day);
 
                  return (

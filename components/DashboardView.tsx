@@ -1,6 +1,7 @@
 import React from 'react';
 import { AppData } from '../types';
 import { Wallet, Briefcase, Flag, Timer, Infinity as InfinityIcon, ChevronRight, Sword, PlusCircle, PartyPopper, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
+import { isBillActiveInMonth } from '../dateHelpers';
 
 interface DashboardViewProps {
   data: AppData;
@@ -37,21 +38,22 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data, onSwitchTab, onOpen
     .filter(t => t.a > 0 && !t.t.toLowerCase().includes('elevate') && !t.t.toLowerCase().includes('payroll'))
     .reduce((s, t) => s + t.a, 0);
 
-  // Bill Stats
+  // Bill Stats (Restored missing variables)
   const today = currentMonth.getDate();
-  const dayBills = data.bills.filter(b => b.day === today);
+  const activeBills = data.bills.filter(b => isBillActiveInMonth(b, currentYear, currentMonthIdx));
+
+  const dayBills = activeBills.filter(b => b.day === today);
   const dayTotal = dayBills.reduce((acc, b) => acc + b.amount, 0);
-  const monthTotal = data.bills.reduce((acc, b) => acc + b.amount, 0);
+  const monthTotal = activeBills.reduce((acc, b) => acc + b.amount, 0);
   
   const firstDayOfWeek = today - currentMonth.getDay();
   const lastDayOfWeek = firstDayOfWeek + 6;
-  const weekBills = data.bills.filter(b => b.day >= firstDayOfWeek && b.day <= lastDayOfWeek);
+  const weekBills = activeBills.filter(b => b.day >= firstDayOfWeek && b.day <= lastDayOfWeek);
   const weekTotal = weekBills.reduce((acc, b) => acc + b.amount, 0);
 
   // Next Bill
-  const sortedBills = [...data.bills].sort((a, b) => a.day - b.day);
+  const sortedBills = [...activeBills].sort((a, b) => a.day - b.day);
   const nextBill = sortedBills.find(b => b.day >= today) || sortedBills[0];
-
   // Spending
   const dining = monthTx.filter(t => t.c === "Dining").reduce((s, t) => s + Math.abs(t.a), 0);
   const groceries = monthTx.filter(t => t.c === "Groceries").reduce((s, t) => s + Math.abs(t.a), 0);
