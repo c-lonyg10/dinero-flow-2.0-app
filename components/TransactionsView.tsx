@@ -26,10 +26,14 @@ const TransactionsView: React.FC<TransactionsViewProps> = ({ data, onOpenTxModal
 
   const selectedLabel = monthOptions.find(o => o.value === monthOffset)?.label || 'Selected Month';
 
-  // Filter transactions by selected month
+  // Filter transactions by selected month (Timezone-safe string split)
   const monthTx = data.transactions.filter(t => {
-      const d = new Date(t.d);
-      return d.getMonth() === targetMonth && d.getFullYear() === targetYear;
+      if (!t.d) return false;
+      const parts = t.d.split('-');
+      if (parts.length < 2) return false;
+      const tYear = parseInt(parts[0], 10);
+      const tMonth = parseInt(parts[1], 10) - 1; // 0-indexed
+      return tMonth === targetMonth && tYear === targetYear;
   });
 
   const sortedTx = [...monthTx]

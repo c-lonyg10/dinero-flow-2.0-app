@@ -23,10 +23,14 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
   // Generate Dropdown Options
   const monthOptions = get2026MonthOptions();
 
-  // Filter transactions
+  // Filter transactions (Timezone-safe string split)
   const monthTx = data.transactions.filter(t => {
-      const d = new Date(t.d);
-      return d.getMonth() === targetMonth && d.getFullYear() === targetYear;
+      if (!t.d) return false;
+      const parts = t.d.split('-');
+      if (parts.length < 2) return false;
+      const tYear = parseInt(parts[0], 10);
+      const tMonth = parseInt(parts[1], 10) - 1;
+      return tMonth === targetMonth && tYear === targetYear;
   });
 
   // 1. Calculate Category Data
@@ -61,8 +65,9 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ data, monthOffset, setM
       const y = d.getFullYear();
       
       const txs = data.transactions.filter(t => {
-          const td = new Date(t.d);
-          return td.getMonth() === m && td.getFullYear() === y;
+          if (!t.d) return false;
+          const parts = t.d.split('-');
+          return parts.length >= 2 && (parseInt(parts[1], 10) - 1) === m && parseInt(parts[0], 10) === y;
       });
 
       const income = txs.filter(t => t.a > 0).reduce((sum, t) => sum + t.a, 0);
