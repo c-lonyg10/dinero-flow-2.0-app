@@ -10,15 +10,21 @@ interface DashboardViewProps {
 
 const DashboardView: React.FC<DashboardViewProps> = ({ data, onSwitchTab, onOpenTxModal }) => {
   const currentMonth = new Date();
+  const currentMonthIdx = currentMonth.getMonth(); // 0-indexed (9 for October)
+  const currentYear = currentMonth.getFullYear();  // 2026
   
   // Calculate Balance
   const totalTx = data.transactions.reduce((acc, t) => acc + t.a, 0);
   const balance = (data.budget.startingBalance || 0) + totalTx;
 
-  // Filter for Current Month
+  // Timezone-safe string splitting for current month
   const monthTx = data.transactions.filter(t => {
-    const d = new Date(t.d);
-    return d.getMonth() === currentMonth.getMonth() && d.getFullYear() === currentMonth.getFullYear();
+    if (!t.d) return false;
+    const parts = t.d.split('-');
+    if (parts.length < 2) return false;
+    const tYear = parseInt(parts[0], 10);
+    const tMonth = parseInt(parts[1], 10) - 1; // Convert 1-indexed to 0-indexed
+    return tMonth === currentMonthIdx && tYear === currentYear;
   });
 
   // Cash Flow Logic
@@ -51,14 +57,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data, onSwitchTab, onOpen
   const groceries = monthTx.filter(t => t.c === "Groceries").reduce((s, t) => s + Math.abs(t.a), 0);
   const foodTotal = dining + groceries;
 
-  // --- UPDATED FUN TOTAL LOGIC ---
-  // Calculates total of ALL discretionary categories (Gas, Clothes, Games, etc.)
-  // by excluding fixed costs. This matches the 'CategoriesView' total.
+  // Calculates total of ALL discretionary categories by excluding fixed costs
   const funTotal = monthTx.filter(t => 
     t.a < 0 && 
     !['Rent', 'Bills', 'Debt', 'Income', 'Other'].includes(t.c)
   ).reduce((s, t) => s + Math.abs(t.a), 0);
-  // -------------------------------
 
   // Debt Countdown
   const freedomDate = new Date("2026-05-01");
@@ -113,10 +116,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data, onSwitchTab, onOpen
         </div>
       </div>
       
-      {/* Categories Bubble (Formerly For Fun) */}
+      {/* Categories Bubble */}
       <div className="flex justify-center">
         <button 
-          onClick={() => onSwitchTab('categories')} // REDIRECTED TO NEW PAGE
+          onClick={() => onSwitchTab('categories')}
           className="relative group bg-gradient-to-br from-pink-600 to-purple-700 p-1 rounded-full shadow-[0_0_20px_rgba(219,39,119,0.3)] transition-transform active:scale-95 hover:scale-105"
         >
           <div className="bg-black/20 w-32 h-32 rounded-full flex flex-col items-center justify-center backdrop-blur-sm border border-white/20">
