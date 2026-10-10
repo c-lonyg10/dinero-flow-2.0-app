@@ -1,7 +1,25 @@
+import { Bill } from './types';
+
 export interface MonthOption {
   value: number;
   label: string;
 }
+
+export const isBillActiveInMonth = (bill: Bill, year: number, monthIdx: number): boolean => {
+  const currentKeyVal = year * 12 + monthIdx;
+
+  if (bill.startMonth) {
+    const [sY, sM] = bill.startMonth.split('-').map(Number);
+    if (currentKeyVal < (sY * 12 + sM)) return false;
+  }
+
+  if (bill.endMonth) {
+    const [eY, eM] = bill.endMonth.split('-').map(Number);
+    if (currentKeyVal > (eY * 12 + eM)) return false;
+  }
+
+  return true;
+};
 
 export const get2026MonthOptions = (): MonthOption[] => {
   const today = new Date();

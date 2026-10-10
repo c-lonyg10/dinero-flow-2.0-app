@@ -369,7 +369,7 @@ const App: React.FC = () => {
         const line = lines[i].trim();
         if (!line) continue;
         
-        const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/^"\vert{}"$/g, '').trim());
+        const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/^"|"$/g, '').trim());
         if (cols.length < 3) continue;
 
         let dateStr = cols[dateIdx];
@@ -583,7 +583,11 @@ const App: React.FC = () => {
     const amount = parseFloat((form.elements.namedItem('amount') as HTMLInputElement).value);
     const day = parseInt((form.elements.namedItem('day') as HTMLInputElement).value);
 
-    if (editingBill) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - monthOffset);
+    const currentViewKey = `${d.getFullYear()}-${d.getMonth()}`;
+
+    if (editingBill && editingBill.id) {
       setData(prev => ({
         ...prev,
         bills: prev.bills.map(b => b.id === editingBill.id ? { ...b, name, amount, day } : b)
@@ -591,7 +595,16 @@ const App: React.FC = () => {
     } else {
       setData(prev => ({
         ...prev,
-        bills: [...prev.bills, { id: Date.now(), name, amount, day }]
+        bills: [
+          ...prev.bills,
+          {
+            id: Date.now(),
+            name,
+            amount,
+            day,
+            startMonth: currentViewKey // Active only from this viewing month forward
+          }
+        ]
       }));
     }
     triggerHapticSuccess();
@@ -600,12 +613,32 @@ const App: React.FC = () => {
   };
 
   const deleteBill = () => {
-    if(editingBill && confirm("Delete Bill?")) {
-      triggerHaptic('medium');
-      setData(prev => ({ ...prev, bills: prev.bills.filter(b => b.id !== editingBill.id) }));
-      setIsBillModalOpen(false);
-      setEditingBill(null);
-    }
+    if (!editingBill || !confirm(`Remove "${editingBill.name}" from this month forward? (Historical records will be preserved)`)) return;
+
+    triggerHaptic('medium');
+    const d = new Date();
+    d.setMonth(d.getMonth() - monthOffset);
+    const viewYear = d.getFullYear();
+    const viewMonth = d.getMonth();
+
+    // If deleting from the viewing month, end it at the prior month
+    const priorMonthDate = new Date(viewYear, viewMonth - 1, 1);
+    const endKey = `${priorMonthDate.getFullYear()}-${priorMonthDate.getMonth()}`;
+
+    setData(prev => ({
+      ...prev,
+      bills: prev.bills.map(b => {
+        if (b.id !== editingBill.id) return b;
+        return {
+          ...b,
+          endMonth: endKey
+        };
+      })
+    }));
+
+    triggerHapticSuccess();
+    setIsBillModalOpen(false);
+    setEditingBill(null);
   };
 
   const toggleBillPaid = () => {

@@ -13,8 +13,10 @@ export interface Transaction {
     day: number;
     manualPaid?: string[]; // Array of "YYYY-MM" strings
     dueDate?: number;
-  }
-  
+    startMonth?: string;   // Format "YYYY-M" (e.g. "2026-9" for Oct)
+    endMonth?: string;     // Format "YYYY-M" (e.g. "2026-8" for Sept)
+}
+    
   export interface Budget {
     avgIncome: number;
     annaContrib: number;
