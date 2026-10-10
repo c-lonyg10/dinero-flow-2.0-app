@@ -278,7 +278,9 @@ const App: React.FC = () => {
             name: String(bill.name || 'Unknown'),
             amount: Number(bill.amount || 0),
             day: Number(bill.day || bill.dueDate || 1),
-            manualPaid: bill.manualPaid || []
+            manualPaid: bill.manualPaid || [],
+            startMonth: bill.startMonth || undefined,
+            endMonth: bill.endMonth || undefined
           })),
           transactions: (restoredData.transactions || []).map((tx: any) => ({
             id: Number(tx.id),
